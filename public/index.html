@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Выбор тем</title>
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+  <h1>Выбор тем</h1>
+
+  <label>Введите ФИО: <input type="text" id="fio"></label>
+  <button onclick="register()">Войти</button>
+
+  <h2>Список тем</h2>
+  <ul id="topics"></ul>
+
+  <div id="status"></div>
+
+  <script>
+    const socket = io();
+    let fio = "";
+
+    function register() {
+      fio = document.getElementById('fio').value.trim();
+      if (!fio) {
+        alert("Введите ФИО!");
+        return;
+      }
+      socket.emit('registerStudent', fio);
+      document.getElementById('status').innerText = "✅ Вы вошли как: " + fio;
+    }
+
+    function choose(id) {
+      if (!fio) {
+        alert("Сначала введите ФИО!");
+        return;
+      }
+      socket.emit('chooseTopic', { fio, topicId: id });
+    }
+
+    // получаем список тем
+    socket.on('topicsList', (topics) => {
+      let html = "";
+      topics.forEach(t => {
+        if (t.student) {
+          html += `<li>❌ ${t.title} — занята (${t.student})</li>`;
+        } else {
+          html += `<li><button onclick="choose(${t.id})">${t.title}</button></li>`;
+        }
+      });
+      document.getElementById('topics').innerHTML = html;
+    });
+
+    socket.on('topicError', (msg) => {
+      alert(msg);
+    });
+  </script>
+</body>
+</html>
