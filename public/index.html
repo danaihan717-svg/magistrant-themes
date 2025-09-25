@@ -31,6 +31,7 @@
   <script>
     const socket = io();
     let fio = "";
+    let selectedCenter = null;
 
     function register() {
       fio = document.getElementById('fio').value.trim();
@@ -56,12 +57,16 @@
 
     socket.on('topicsList', (centers) => {
       let html1 = "", html2 = "", html3 = "";
+      let blockedCenter = selectedCenter; // центр, который выбрал студент
 
       centers.forEach(center => {
         center.topics.forEach(t => {
+          let disabled = blockedCenter && blockedCenter !== center.name;
           let item = t.student 
             ? `❌ ${t.title} — таңдалды (${t.student}) (${t.time})` 
-            : `<button onclick="choose('${center.name}', ${t.id})">${t.title}</button>`;
+            : disabled 
+              ? `🚫 Бұл орталыққа сіздің таңдауыңыз мүмкін емес` 
+              : `<button onclick="choose('${center.name}', ${t.id})">${t.title}</button>`;
 
           if(center.name.includes("Мемлекеттік")) html1 += `<li>${item}</li>`;
           else if(center.name.includes("Азаматтық")) html2 += `<li>${item}</li>`;
@@ -72,6 +77,12 @@
       document.getElementById('center1').innerHTML = html1;
       document.getElementById('center2').innerHTML = html2;
       document.getElementById('center3').innerHTML = html3;
+
+      // Обновляем selectedCenter, если студент выбрал тему
+      centers.forEach(center => {
+        let hasStudent = center.topics.some(t => t.student === fio);
+        if(hasStudent) selectedCenter = center.name;
+      });
     });
 
     socket.on('topicError', (msg) => alert(msg));
