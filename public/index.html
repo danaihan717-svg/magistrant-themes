@@ -8,14 +8,19 @@
 <body>
   <h1>Выбор тем</h1>
 
-  <label>Введите ФИО: <input type="text" id="fio"></label>
-  <button onclick="register()">Войти</button>
-  <button onclick="downloadReport()">Скачать отчёт</button>
+  <div>
+    <label>Введите ФИО: <input type="text" id="fio"></label>
+    <button onclick="register()">Войти</button>
+  </div>
+
+  <div style="margin-top: 10px;">
+    <button onclick="downloadReport()">📄 Скачать отчёт</button>
+  </div>
 
   <h2>Список тем</h2>
   <ul id="topics"></ul>
 
-  <div id="status"></div>
+  <div id="status" style="margin-top: 20px;"></div>
 
   <script>
     const socket = io();
@@ -40,6 +45,7 @@
     }
 
     function downloadReport() {
+      // просто переходим по маршруту на сервере, который отдаёт CSV
       window.location.href = "/downloadReport";
     }
 
