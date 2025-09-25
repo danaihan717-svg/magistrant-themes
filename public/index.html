@@ -72,22 +72,8 @@
     }
 
     function logout() {
-      fio = "";
-      selectedCenter = null;
-
-      ['center1','center2','center3'].forEach(id => {
-        document.getElementById(id).style.display = 'none';
-        document.getElementById(id).innerHTML = "";
-      });
-
-      document.getElementById('status').innerText = "";
-
-      document.getElementById('userStatus').style.display = 'none';
-      document.getElementById('logoutBtn').style.display = 'none';
-
-      document.getElementById('fioLabel').style.display = 'inline';
-      document.getElementById('loginBtn').style.display = 'inline';
-      document.getElementById('fio').value = "";
+      // Полное обновление страницы для выхода
+      location.reload();
     }
 
     function showCenter(centerId) {
