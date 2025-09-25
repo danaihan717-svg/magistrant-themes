@@ -2,10 +2,11 @@ const express = require('express');
 const app = express();
 const http = require('http').createServer(app);
 const io = require('socket.io')(http);
+const fs = require('fs');
 
 app.use(express.static('public'));
 
-// Список тем (можно заменить на реальные 100)
+// Список тем (можно заменить на свои 100 тем)
 let topics = [
   { id: 1, title: "Разработка веб-приложений на Node.js", student: null, time: null },
   { id: 2, title: "Искусственный интеллект и машинное обучение", student: null, time: null },
@@ -20,6 +21,7 @@ let topics = [
   // …добавьте оставшиеся до 100 тем
 ];
 
+// Socket.IO
 io.on('connection', (socket) => {
   console.log("🔗 Новый магистрант подключился");
 
@@ -27,7 +29,7 @@ io.on('connection', (socket) => {
   socket.on('registerStudent', (fio) => {
     socket.fio = fio;
     console.log(`✅ Зарегистрировался: ${fio}`);
-    socket.emit('topicsList', topics); // отправляем список тем
+    socket.emit('topicsList', topics);
   });
 
   // выбор темы
@@ -47,12 +49,12 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // закрепляем тему и время выбора
+    // закрепляем тему и время (Asia/Almaty)
     topic.student = fio;
     topic.time = new Date().toLocaleString("ru-RU", { timeZone: "Asia/Almaty" });
 
     console.log(`🎓 ${fio} выбрал тему: ${topic.title} (${topic.time})`);
-    io.emit('topicsList', topics); // обновляем у всех
+    io.emit('topicsList', topics);
   });
 
   socket.on('disconnect', () => {
@@ -60,6 +62,19 @@ io.on('connection', (socket) => {
       console.log(`❎ Отключился: ${socket.fio}`);
     }
   });
+});
+
+// Маршрут для скачивания отчёта CSV
+app.get('/downloadReport', (req, res) => {
+  let csv = "ФИО,Тема,Время выбора\n";
+  topics.forEach(t => {
+    if (t.student) {
+      csv += `${t.student},${t.title},${t.time}\n`;
+    }
+  });
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', 'attachment; filename=report.csv');
+  res.send(csv);
 });
 
 http.listen(3000, () => {
