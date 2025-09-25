@@ -6,7 +6,7 @@
   <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
-  <h1>Қазақстан Республикасы Жоғары Сот Кеңесінің жанындағы Сот төрелігі академиясы магистранттарының тақырып таңдау онлайн-платформасы</h1>
+  <h1>Тақырып таңдау</h1>
 
   <div>
     <label>Толық аты-жөніңізді енгізіңіз: <input type="text" id="fio"></label>
@@ -17,8 +17,14 @@
     <button onclick="downloadReport()">📄 Есепті жүктеу</button>
   </div>
 
-  <h2>Тақырыптар тізімі</h2>
-  <ul id="topics"></ul>
+  <h2>Мемлекеттік-құқықтық пәндердің ғылыми-білім беру орталығы</h2>
+  <ul id="center1"></ul>
+
+  <h2>Азаматтық-құқықтық пәндердің ғылыми-білім беру орталығы</h2>
+  <ul id="center2"></ul>
+
+  <h2>Қылмыстық-құқықтық пәндердің ғылыми-білім беру орталығы</h2>
+  <ul id="center3"></ul>
 
   <div id="status" style="margin-top: 20px;"></div>
 
@@ -36,34 +42,39 @@
       document.getElementById('status').innerText = "✅ Кіру жасалды: " + fio;
     }
 
-    function choose(id) {
+    function choose(centerName, topicId) {
       if (!fio) {
         alert("Бірінші толық аты-жөнді енгізіңіз!");
         return;
       }
-      socket.emit('chooseTopic', { fio, topicId: id });
+      socket.emit('chooseTopic', { fio, centerName, topicId });
     }
 
     function downloadReport() {
-      // серверден CSV алу үшін маршрутқа өтеміз
       window.location.href = "/downloadReport";
     }
 
-    socket.on('topicsList', (topics) => {
-      let html = "";
-      topics.forEach(t => {
-        if (t.student) {
-          html += `<li>❌ ${t.title} — таңдалды (${t.student}) (${t.time})</li>`;
-        } else {
-          html += `<li><button onclick="choose(${t.id})">${t.title}</button></li>`;
-        }
+    socket.on('topicsList', (centers) => {
+      let html1 = "", html2 = "", html3 = "";
+
+      centers.forEach(center => {
+        center.topics.forEach(t => {
+          let item = t.student 
+            ? `❌ ${t.title} — таңдалды (${t.student}) (${t.time})` 
+            : `<button onclick="choose('${center.name}', ${t.id})">${t.title}</button>`;
+
+          if(center.name.includes("Мемлекеттік")) html1 += `<li>${item}</li>`;
+          else if(center.name.includes("Азаматтық")) html2 += `<li>${item}</li>`;
+          else if(center.name.includes("Қылмыстық")) html3 += `<li>${item}</li>`;
+        });
       });
-      document.getElementById('topics').innerHTML = html;
+
+      document.getElementById('center1').innerHTML = html1;
+      document.getElementById('center2').innerHTML = html2;
+      document.getElementById('center3').innerHTML = html3;
     });
 
-    socket.on('topicError', (msg) => {
-      alert(msg);
-    });
+    socket.on('topicError', (msg) => alert(msg));
   </script>
 </body>
 </html>
