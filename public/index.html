@@ -5,59 +5,19 @@
   <title>Сот төрелігі академиясы</title>
   <script src="/socket.io/socket.io.js"></script>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      font-size: 18px;
-    }
-
+    body { font-family: Arial, sans-serif; font-size: 18px; }
     h1 { font-size: 32px; }
     h2 { font-size: 24px; }
-
-    li {
-      margin-bottom: 12px;
-      list-style: none;
-      font-size: 18px;
-      transition: background-color 0.3s;
-    }
-
-    li button {
-      padding: 8px 12px;
-      font-size: 18px;
-      margin-right: 5px;
-      border: none;
-      cursor: pointer;
-      border-radius: 4px;
-      transition: background-color 0.3s, transform 0.2s;
-    }
-
+    li { margin-bottom: 12px; list-style: none; font-size: 18px; transition: background-color 0.3s; }
+    li button { padding: 8px 12px; font-size: 18px; margin-right: 5px; border: none; cursor: pointer; border-radius: 4px; transition: background-color 0.3s, transform 0.2s; }
     li button:hover { transform: scale(1.05); }
-
     .free button { background-color: #c8e6c9; }
-    .taken { background-color: #ffcdd2; padding: 5px; border-radius: 4px; transition: background-color 0.5s; }
-    .blocked { background-color: #eeeeee; padding: 5px; border-radius: 4px; transition: background-color 0.5s; }
-    .my-selected { 
-      background-color: #4caf50; 
-      color: white; 
-      padding: 5px; 
-      border-radius: 4px; 
-      animation: highlight 0.5s ease-in-out; 
-      transition: background-color 0.5s;
-    }
-
-    @keyframes highlight {
-      0% { transform: scale(1); }
-      50% { transform: scale(1.1); }
-      100% { transform: scale(1); }
-    }
-
+    .taken { background-color: #ffcdd2; padding: 5px; border-radius: 4px; }
+    .blocked { background-color: #eeeeee; padding: 5px; border-radius: 4px; }
+    .my-selected { background-color: #4caf50; color: white; padding: 5px; border-radius: 4px; animation: highlight 0.5s ease-in-out; }
+    @keyframes highlight { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
     #centersList li { margin-bottom: 12px; }
-    #centersList button { 
-      width: 100%; 
-      text-align: left; 
-      background-color: #bbdefb; 
-      padding: 10px; 
-      font-size: 20px;
-    }
+    #centersList button { width: 100%; text-align: left; background-color: #bbdefb; padding: 10px; font-size: 20px; }
     #centersList button:disabled { background-color: #eeeeee; cursor: not-allowed; }
   </style>
 </head>
@@ -65,8 +25,11 @@
   <h1>Сот төрелігі академиясы магистранттарының тақырып таңдау онлайн-платформасы</h1>
 
   <div id="loginDiv">
-    <label>Толық аты-жөніңізді енгізіңіз: <input type="text" id="fio"></label>
+    <label>Толық аты-жөніңізді енгізіңіз: 
+      <input type="text" id="fio">
+    </label>
     <button onclick="register()">Кіру</button>
+    <button id="logoutBtn" onclick="logout()" style="display:none; margin-left:10px;">Шығу</button>
   </div>
 
   <div id="status" style="margin-top: 20px;"></div>
@@ -97,8 +60,23 @@
 
       socket.emit('registerStudent', fio);
 
-      document.getElementById('loginDiv').style.display = 'none';
+      document.getElementById('loginDiv').style.display = 'block';
       document.getElementById('status').innerText = "✅ Кіру жасалды: " + fio;
+      document.getElementById('logoutBtn').style.display = 'inline-block';
+    }
+
+    function logout() {
+      fio = "";
+      selectedCenter = null;
+
+      ['center1','center2','center3'].forEach(id => {
+        document.getElementById(id).style.display = 'none';
+        document.getElementById(id).innerHTML = "";
+      });
+
+      document.getElementById('status').innerText = "";
+      document.getElementById('fio').value = "";
+      document.getElementById('logoutBtn').style.display = 'none';
     }
 
     function showCenter(centerId) {
@@ -123,20 +101,23 @@
       selectedCenter = null;
 
       centers.forEach(center => {
-        center.topics.forEach(t => {
-          if(t.student === fio) selectedCenter = center.name;
-        });
+        if(center.topics.some(t => t.student === fio)) selectedCenter = center.name;
       });
+
+      if(selectedCenter) {
+        if(selectedCenter === centers[0].name) showCenter('center1');
+        else if(selectedCenter === centers[1].name) showCenter('center2');
+        else if(selectedCenter === centers[2].name) showCenter('center3');
+      }
 
       centers.forEach((center, idx) => {
         let html = "";
-        const maxSelectable = 31; // только первые 31 доступны
+        const maxSelectable = 31;
         const selectedCount = center.topics.filter(t => t.student).length;
         const freeCount = Math.max(maxSelectable - selectedCount, 0);
 
         center.topics.forEach(t => {
           let disabled = selectedCenter && selectedCenter !== center.name;
-          // блокируем если достигнут лимит 31
           if(selectedCount >= maxSelectable) disabled = true;
 
           let itemClass = "";
@@ -158,7 +139,6 @@
         else if(idx === 1) document.getElementById('center2').innerHTML = html;
         else if(idx === 2) document.getElementById('center3').innerHTML = html;
 
-        // обновляем кнопку центра с количеством свободных тем
         let btnId = 'btn-' + (idx === 0 ? 'center1' : idx === 1 ? 'center2' : 'center3');
         document.getElementById(btnId).innerText = `${center.name} — бос орындар: ${freeCount}`;
         document.getElementById(btnId).disabled = selectedCenter && selectedCenter !== center.name;
