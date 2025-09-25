@@ -10,6 +10,7 @@
 
   <label>Введите ФИО: <input type="text" id="fio"></label>
   <button onclick="register()">Войти</button>
+  <button onclick="downloadReport()">Скачать отчёт</button>
 
   <h2>Список тем</h2>
   <ul id="topics"></ul>
@@ -38,7 +39,10 @@
       socket.emit('chooseTopic', { fio, topicId: id });
     }
 
-    // получаем список тем
+    function downloadReport() {
+      window.location.href = "/downloadReport";
+    }
+
     socket.on('topicsList', (topics) => {
       let html = "";
       topics.forEach(t => {
