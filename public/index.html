@@ -130,12 +130,16 @@
 
       centers.forEach((center, idx) => {
         let html = "";
-        let freeCount = center.topics.filter(t => !t.student).length;
+        const maxSelectable = 31; // только первые 31 доступны
+        const selectedCount = center.topics.filter(t => t.student).length;
+        const freeCount = Math.max(maxSelectable - selectedCount, 0);
 
         center.topics.forEach(t => {
           let disabled = selectedCenter && selectedCenter !== center.name;
-          let itemClass = "";
+          // блокируем если достигнут лимит 31
+          if(selectedCount >= maxSelectable) disabled = true;
 
+          let itemClass = "";
           if(t.student === fio) itemClass = "my-selected";
           else if(t.student) itemClass = "taken";
           else if(disabled) itemClass = "blocked";
@@ -154,7 +158,7 @@
         else if(idx === 1) document.getElementById('center2').innerHTML = html;
         else if(idx === 2) document.getElementById('center3').innerHTML = html;
 
-        // обновляем текст кнопки центра с количеством свободных тем
+        // обновляем кнопку центра с количеством свободных тем
         let btnId = 'btn-' + (idx === 0 ? 'center1' : idx === 1 ? 'center2' : 'center3');
         document.getElementById(btnId).innerText = `${center.name} — бос орындар: ${freeCount}`;
         document.getElementById(btnId).disabled = selectedCenter && selectedCenter !== center.name;
