@@ -8,7 +8,7 @@
     body { font-family: Arial, sans-serif; font-size: 18px; }
     h1 { font-size: 32px; }
     h2 { font-size: 24px; margin-top: 30px; }
-    li { margin-bottom: 12px; list-style: none; font-size: 18px; transition: background-color 0.3s; }
+    li { margin-bottom: 12px; list-style: none; font-size: 18px; }
     li button { padding: 8px 12px; font-size: 18px; margin-right: 5px; border: none; cursor: pointer; border-radius: 4px; transition: background-color 0.3s, transform 0.2s; }
     li button:hover { transform: scale(1.05); }
     .free button { background-color: #c8e6c9; }
@@ -62,11 +62,9 @@
 
       socket.emit('registerStudent', fio);
 
-      // Скрываем поле и кнопку входа
       document.getElementById('fioLabel').style.display = 'none';
       document.getElementById('loginBtn').style.display = 'none';
 
-      // Показываем статус и кнопку выхода
       const userStatus = document.getElementById('userStatus');
       userStatus.innerText = "Кіру жасалды: " + fio;
       userStatus.style.display = 'inline-block';
@@ -84,21 +82,17 @@
 
       document.getElementById('status').innerText = "";
 
-      // Скрываем статус и кнопку выхода
       document.getElementById('userStatus').style.display = 'none';
       document.getElementById('logoutBtn').style.display = 'none';
 
-      // Показываем поле ввода и кнопку входа
       document.getElementById('fioLabel').style.display = 'inline';
       document.getElementById('loginBtn').style.display = 'inline';
       document.getElementById('fio').value = "";
     }
 
     function showCenter(centerId) {
-      if (selectedCenter) return;
-      ['center1','center2','center3'].forEach(id => {
-        document.getElementById(id).style.display = 'none';
-      });
+      if (selectedCenter) return; // нельзя менять центр после выбора
+      ['center1','center2','center3'].forEach(id => document.getElementById(id).style.display = 'none');
       document.getElementById(centerId).style.display = 'block';
     }
 
@@ -114,10 +108,12 @@
     socket.on('topicsList', (centers) => {
       selectedCenter = null;
 
+      // Определяем, в каком центре магистрант уже выбрал тему
       centers.forEach(center => {
         if(center.topics.some(t => t.student === fio)) selectedCenter = center.name;
       });
 
+      // Автоматически раскрываем центр с выбранной темой
       if(selectedCenter) {
         if(selectedCenter === centers[0].name) showCenter('center1');
         else if(selectedCenter === centers[1].name) showCenter('center2');
