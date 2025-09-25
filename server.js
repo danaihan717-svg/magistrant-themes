@@ -19,7 +19,10 @@ let topics = [
   { id: 9, title: "Блокчейн және криптовалюталар", student: null, time: null },
   { id: 10, title: "Дерекқорларды жобалау", student: null, time: null },
   { id: 11, title: "Академия қалай көркейту қажет", student: null, time: null },
-  { id: 12, title: "Пикникке қашан барамыз Фантастика", student: null, time: null }
+  { id: 12, title: "Пик-никке қашан барамыз? Фантастика", student: null, time: null },
+  { id: 13, title: "Не десем екен, не десем?", student: null, time: null },
+  { id: 14, title: "Бұл жерде Сіздің тақырыбыңыз болуы мүмкін еді", student: null, time: null },
+  { id: 12, title: "Осы платформаға премия береді ме екен?", student: null, time: null }
   // …қалғандарын 100-ге дейін қосыңыз
 ];
 
