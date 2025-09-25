@@ -1,23 +1,23 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="kz">
 <head>
   <meta charset="UTF-8">
-  <title>Выбор тем магистрантов</title>
+  <title>Магистранттардың тақырып таңдауы</title>
   <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
-  <h1>Выбор тем</h1>
+  <h1>Тақырып таңдау</h1>
 
   <div>
-    <label>Введите ФИО: <input type="text" id="fio"></label>
-    <button onclick="register()">Войти</button>
+    <label>Толық аты-жөніңізді енгізіңіз: <input type="text" id="fio"></label>
+    <button onclick="register()">Кіру</button>
   </div>
 
   <div style="margin-top: 10px;">
-    <button onclick="downloadReport()">📄 Скачать отчёт</button>
+    <button onclick="downloadReport()">📄 Есепті жүктеу</button>
   </div>
 
-  <h2>Список тем</h2>
+  <h2>Тақырыптар тізімі</h2>
   <ul id="topics"></ul>
 
   <div id="status" style="margin-top: 20px;"></div>
@@ -29,23 +29,23 @@
     function register() {
       fio = document.getElementById('fio').value.trim();
       if (!fio) {
-        alert("Введите ФИО!");
+        alert("Толық аты-жөнді енгізіңіз!");
         return;
       }
       socket.emit('registerStudent', fio);
-      document.getElementById('status').innerText = "✅ Вы вошли как: " + fio;
+      document.getElementById('status').innerText = "✅ Кіру жасалды: " + fio;
     }
 
     function choose(id) {
       if (!fio) {
-        alert("Сначала введите ФИО!");
+        alert("Бірінші толық аты-жөнді енгізіңіз!");
         return;
       }
       socket.emit('chooseTopic', { fio, topicId: id });
     }
 
     function downloadReport() {
-      // просто переходим по маршруту на сервере, который отдаёт CSV
+      // серверден CSV алу үшін маршрутқа өтеміз
       window.location.href = "/downloadReport";
     }
 
@@ -53,7 +53,7 @@
       let html = "";
       topics.forEach(t => {
         if (t.student) {
-          html += `<li>❌ ${t.title} — выбрана (${t.student}) (${t.time})</li>`;
+          html += `<li>❌ ${t.title} — таңдалды (${t.student}) (${t.time})</li>`;
         } else {
           html += `<li><button onclick="choose(${t.id})">${t.title}</button></li>`;
         }
