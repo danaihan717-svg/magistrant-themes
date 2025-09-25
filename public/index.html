@@ -6,8 +6,9 @@
   <script src="/socket.io/socket.io.js"></script>
   <style>
     li {
-      margin-bottom: 8px; /* отступ между строками */
+      margin-bottom: 8px;
       list-style: none;
+      transition: background-color 0.3s;
     }
     li button {
       padding: 5px 10px;
@@ -15,20 +16,40 @@
       border: none;
       cursor: pointer;
       border-radius: 4px;
+      transition: background-color 0.3s, transform 0.2s;
     }
-    .free button { background-color: #c8e6c9; }        /* светло-зеленый для свободных тем */
-    .taken { background-color: #ffcdd2; padding: 5px; border-radius: 4px; }   /* красный для выбранных другими */
-    .blocked { background-color: #eeeeee; padding: 5px; border-radius: 4px; } /* серый для заблокированных центров */
-    .my-selected { background-color: #4caf50; color: white; padding: 5px; border-radius: 4px; } /* ярко-зеленый для вашей выбранной темы */
+    li button:hover {
+      transform: scale(1.05);
+    }
+
+    .free button { background-color: #c8e6c9; }       /* светло-зеленый для свободных */
+    .taken { background-color: #ffcdd2; padding: 5px; border-radius: 4px; transition: background-color 0.5s; }  /* красный для занятых другими */
+    .blocked { background-color: #eeeeee; padding: 5px; border-radius: 4px; transition: background-color 0.5s; } /* серый для заблокированных центров */
+    .my-selected { 
+      background-color: #4caf50; 
+      color: white; 
+      padding: 5px; 
+      border-radius: 4px; 
+      animation: highlight 0.5s ease-in-out; 
+      transition: background-color 0.5s;
+    }
+
+    @keyframes highlight {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    }
   </style>
 </head>
 <body>
   <h1>Сот төрелігі академиясы магистранттарының тақырып таңдау онлайн-платформасы</h1>
 
-  <div>
+  <div id="loginDiv">
     <label>Толық аты-жөніңізді енгізіңіз: <input type="text" id="fio"></label>
     <button onclick="register()">Кіру</button>
   </div>
+
+  <div id="status" style="margin-top: 20px;"></div>
 
   <div style="margin-top: 10px;">
     <button onclick="downloadReport()">📄 Есепті жүктеу</button>
@@ -43,8 +64,6 @@
   <h2 id="title3">Қылмыстық-құқықтық пәндердің ғылыми-білім беру орталығы</h2>
   <ul id="center3"></ul>
 
-  <div id="status" style="margin-top: 20px;"></div>
-
   <script>
     const socket = io();
     let fio = "";
@@ -53,7 +72,10 @@
     function register() {
       fio = document.getElementById('fio').value.trim();
       if (!fio) { alert("Толық аты-жөнді енгізіңіз!"); return; }
+
       socket.emit('registerStudent', fio);
+
+      document.getElementById('loginDiv').style.display = 'none';
       document.getElementById('status').innerText = "✅ Кіру жасалды: " + fio;
     }
 
@@ -70,7 +92,6 @@
       selectedCenter = null;
       let mySelectedTopicId = null;
 
-      // Определяем выбранный центр и тему студентом
       centers.forEach(center => {
         center.topics.forEach(t => {
           if(t.student === fio) {
@@ -90,13 +111,13 @@
           let itemClass = "";
 
           if(t.student === fio) {
-            itemClass = "my-selected"; // ваша выбранная тема
+            itemClass = "my-selected";
           } else if(t.student) {
-            itemClass = "taken";       // выбрана другим
+            itemClass = "taken";
           } else if(disabled) {
-            itemClass = "blocked";     // заблокирован
+            itemClass = "blocked";
           } else {
-            itemClass = "free";        // свободна
+            itemClass = "free";
           }
 
           let content = "";
