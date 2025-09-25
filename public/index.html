@@ -72,8 +72,7 @@
     }
 
     function logout() {
-      // Полное обновление страницы для выхода
-      location.reload();
+      location.reload(); // Полное обновление страницы при выходе
     }
 
     function showCenter(centerId) {
@@ -101,9 +100,9 @@
 
       // Автоматически раскрываем центр с выбранной темой
       if(selectedCenter) {
-        if(selectedCenter === centers[0].name) showCenter('center1');
-        else if(selectedCenter === centers[1].name) showCenter('center2');
-        else if(selectedCenter === centers[2].name) showCenter('center3');
+        if(selectedCenter === centers[0].name) document.getElementById('center1').style.display = 'block';
+        else if(selectedCenter === centers[1].name) document.getElementById('center2').style.display = 'block';
+        else if(selectedCenter === centers[2].name) document.getElementById('center3').style.display = 'block';
       }
 
       centers.forEach((center, idx) => {
@@ -116,19 +115,13 @@
           let disabled = selectedCenter && selectedCenter !== center.name;
           if(selectedCount >= maxSelectable) disabled = true;
 
-          let itemClass = "";
-          if(t.student === fio) itemClass = "my-selected";
-          else if(t.student) itemClass = "taken";
-          else if(disabled) itemClass = "blocked";
-          else itemClass = "free";
-
           let content = "";
           if(t.student === fio) content = `✅ ${t.title} — таңдалды (${t.student}) (${t.time})`;
           else if(t.student) content = `❌ ${t.title} — таңдалды (${t.student}) (${t.time})`;
           else if(disabled) content = `🚫 Бұл орталыққа сіздің таңдауыңыз мүмкін емес`;
           else content = `<button onclick="choose('${center.name}', ${t.id})">${t.title}</button>`;
 
-          html += `<li class="${itemClass}">${content}</li>`;
+          html += `<li>${content}</li>`;
         });
 
         if(idx === 0) document.getElementById('center1').innerHTML = html;
