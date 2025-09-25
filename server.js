@@ -49,7 +49,7 @@ io.on('connection', (socket) => {
 
     // закрепляем тему и время выбора
     topic.student = fio;
-    topic.time = new Date().toLocaleString();
+    topic.time = new Date().toLocaleString("ru-RU", { timeZone: "Asia/Almaty" });
 
     console.log(`🎓 ${fio} выбрал тему: ${topic.title} (${topic.time})`);
     io.emit('topicsList', topics); // обновляем у всех
