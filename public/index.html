@@ -4,6 +4,23 @@
   <meta charset="UTF-8">
   <title>Сот төрелігі академиясы</title>
   <script src="/socket.io/socket.io.js"></script>
+  <style>
+    li {
+      margin-bottom: 8px; /* отступ между строками */
+      list-style: none;
+    }
+    li button {
+      padding: 5px 10px;
+      margin-right: 5px;
+      border: none;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    .free button { background-color: #c8e6c9; }        /* светло-зеленый для свободных тем */
+    .taken { background-color: #ffcdd2; padding: 5px; border-radius: 4px; }   /* красный для выбранных другими */
+    .blocked { background-color: #eeeeee; padding: 5px; border-radius: 4px; } /* серый для заблокированных центров */
+    .my-selected { background-color: #4caf50; color: white; padding: 5px; border-radius: 4px; } /* ярко-зеленый для вашей выбранной темы */
+  </style>
 </head>
 <body>
   <h1>Сот төрелігі академиясы магистранттарының тақырып таңдау онлайн-платформасы</h1>
@@ -35,19 +52,13 @@
 
     function register() {
       fio = document.getElementById('fio').value.trim();
-      if (!fio) {
-        alert("Толық аты-жөнді енгізіңіз!");
-        return;
-      }
+      if (!fio) { alert("Толық аты-жөнді енгізіңіз!"); return; }
       socket.emit('registerStudent', fio);
       document.getElementById('status').innerText = "✅ Кіру жасалды: " + fio;
     }
 
     function choose(centerName, topicId) {
-      if (!fio) {
-        alert("Бірінші толық аты-жөнді енгізіңіз!");
-        return;
-      }
+      if (!fio) { alert("Бірінші толық аты-жөнді енгізіңіз!"); return; }
       socket.emit('chooseTopic', { fio, centerName, topicId });
     }
 
@@ -56,15 +67,19 @@
     }
 
     socket.on('topicsList', (centers) => {
-      // Обновляем selectedCenter каждый раз
       selectedCenter = null;
+      let mySelectedTopicId = null;
+
+      // Определяем выбранный центр и тему студентом
       centers.forEach(center => {
-        if(center.topics.some(t => t.student === fio)) {
-          selectedCenter = center.name;
-        }
+        center.topics.forEach(t => {
+          if(t.student === fio) {
+            selectedCenter = center.name;
+            mySelectedTopicId = t.id;
+          }
+        });
       });
 
-      // Генерируем списки и подсчёт свободных мест
       centers.forEach((center, idx) => {
         let html = "";
         let selectedCount = center.topics.filter(t => t.student).length;
@@ -72,15 +87,32 @@
 
         center.topics.forEach(t => {
           let disabled = selectedCenter && selectedCenter !== center.name;
-          let item = t.student 
-            ? `❌ ${t.title} — таңдалды (${t.student}) (${t.time})` 
-            : disabled 
-              ? `🚫 Бұл орталыққа сіздің таңдауыңыз мүмкін емес` 
-              : `<button onclick="choose('${center.name}', ${t.id})">${t.title}</button>`;
-          html += `<li>${item}</li>`;
+          let itemClass = "";
+
+          if(t.student === fio) {
+            itemClass = "my-selected"; // ваша выбранная тема
+          } else if(t.student) {
+            itemClass = "taken";       // выбрана другим
+          } else if(disabled) {
+            itemClass = "blocked";     // заблокирован
+          } else {
+            itemClass = "free";        // свободна
+          }
+
+          let content = "";
+          if(t.student === fio) {
+            content = `✅ ${t.title} — таңдалды (${t.student}) (${t.time})`;
+          } else if(t.student) {
+            content = `❌ ${t.title} — таңдалды (${t.student}) (${t.time})`;
+          } else if(disabled) {
+            content = `🚫 Бұл орталыққа сіздің таңдауыңыз мүмкін емес`;
+          } else {
+            content = `<button onclick="choose('${center.name}', ${t.id})">${t.title}</button>`;
+          }
+
+          html += `<li class="${itemClass}">${content}</li>`;
         });
 
-        // Обновляем список и заголовок с количеством свободных мест
         if(idx === 0) {
           document.getElementById('center1').innerHTML = html;
           document.getElementById('title1').innerText = `${center.name} — бос орындар: ${freeCount}`;
