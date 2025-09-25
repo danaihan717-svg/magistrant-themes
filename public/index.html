@@ -18,13 +18,11 @@
       border-radius: 4px;
       transition: background-color 0.3s, transform 0.2s;
     }
-    li button:hover {
-      transform: scale(1.05);
-    }
+    li button:hover { transform: scale(1.05); }
 
-    .free button { background-color: #c8e6c9; }       /* светло-зеленый для свободных */
-    .taken { background-color: #ffcdd2; padding: 5px; border-radius: 4px; transition: background-color 0.5s; }  /* красный для занятых другими */
-    .blocked { background-color: #eeeeee; padding: 5px; border-radius: 4px; transition: background-color 0.5s; } /* серый для заблокированных центров */
+    .free button { background-color: #c8e6c9; }
+    .taken { background-color: #ffcdd2; padding: 5px; border-radius: 4px; transition: background-color 0.5s; }
+    .blocked { background-color: #eeeeee; padding: 5px; border-radius: 4px; transition: background-color 0.5s; }
     .my-selected { 
       background-color: #4caf50; 
       color: white; 
@@ -39,6 +37,10 @@
       50% { transform: scale(1.1); }
       100% { transform: scale(1); }
     }
+
+    #centersList li { margin-bottom: 10px; }
+    #centersList button { width: 100%; text-align: left; background-color: #bbdefb; padding: 8px; }
+    #centersList button:disabled { background-color: #eeeeee; cursor: not-allowed; }
   </style>
 </head>
 <body>
@@ -55,19 +57,21 @@
     <button onclick="downloadReport()">📄 Есепті жүктеу</button>
   </div>
 
-  <h2 id="title1">Мемлекеттік-құқықтық пәндердің ғылыми-білім беру орталығы</h2>
-  <ul id="center1"></ul>
+  <h2>Орталықтар</h2>
+  <ul id="centersList">
+    <li><button id="btn-center1" onclick="showCenter('center1')">Мемлекеттік-құқықтық пәндердің ғылыми-білім беру орталығы</button></li>
+    <li><button id="btn-center2" onclick="showCenter('center2')">Азаматтық-құқықтық пәндердің ғылыми-білім беру орталығы</button></li>
+    <li><button id="btn-center3" onclick="showCenter('center3')">Қылмыстық-құқықтық пәндердің ғылыми-білім беру орталығы</button></li>
+  </ul>
 
-  <h2 id="title2">Азаматтық-құқықтық пәндердің ғылыми-білім беру орталығы</h2>
-  <ul id="center2"></ul>
-
-  <h2 id="title3">Қылмыстық-құқықтық пәндердің ғылыми-білім беру орталығы</h2>
-  <ul id="center3"></ul>
+  <ul id="center1" style="display:none;"></ul>
+  <ul id="center2" style="display:none;"></ul>
+  <ul id="center3" style="display:none;"></ul>
 
   <script>
     const socket = io();
     let fio = "";
-    let selectedCenter = null;
+    let selectedCenter = null; // выбранный студентом центр
 
     function register() {
       fio = document.getElementById('fio').value.trim();
@@ -77,6 +81,15 @@
 
       document.getElementById('loginDiv').style.display = 'none';
       document.getElementById('status').innerText = "✅ Кіру жасалды: " + fio;
+    }
+
+    function showCenter(centerId) {
+      if (selectedCenter) return; // блокируем, если уже выбрана тема
+
+      ['center1','center2','center3'].forEach(id => {
+        document.getElementById(id).style.display = 'none';
+      });
+      document.getElementById(centerId).style.display = 'block';
     }
 
     function choose(centerName, topicId) {
@@ -90,14 +103,11 @@
 
     socket.on('topicsList', (centers) => {
       selectedCenter = null;
-      let mySelectedTopicId = null;
 
+      // определяем выбранный центр и тему студентом
       centers.forEach(center => {
         center.topics.forEach(t => {
-          if(t.student === fio) {
-            selectedCenter = center.name;
-            mySelectedTopicId = t.id;
-          }
+          if(t.student === fio) selectedCenter = center.name;
         });
       });
 
@@ -110,40 +120,27 @@
           let disabled = selectedCenter && selectedCenter !== center.name;
           let itemClass = "";
 
-          if(t.student === fio) {
-            itemClass = "my-selected";
-          } else if(t.student) {
-            itemClass = "taken";
-          } else if(disabled) {
-            itemClass = "blocked";
-          } else {
-            itemClass = "free";
-          }
+          if(t.student === fio) itemClass = "my-selected";
+          else if(t.student) itemClass = "taken";
+          else if(disabled) itemClass = "blocked";
+          else itemClass = "free";
 
           let content = "";
-          if(t.student === fio) {
-            content = `✅ ${t.title} — таңдалды (${t.student}) (${t.time})`;
-          } else if(t.student) {
-            content = `❌ ${t.title} — таңдалды (${t.student}) (${t.time})`;
-          } else if(disabled) {
-            content = `🚫 Бұл орталыққа сіздің таңдауыңыз мүмкін емес`;
-          } else {
-            content = `<button onclick="choose('${center.name}', ${t.id})">${t.title}</button>`;
-          }
+          if(t.student === fio) content = `✅ ${t.title} — таңдалды (${t.student}) (${t.time})`;
+          else if(t.student) content = `❌ ${t.title} — таңдалды (${t.student}) (${t.time})`;
+          else if(disabled) content = `🚫 Бұл орталыққа сіздің таңдауыңыз мүмкін емес`;
+          else content = `<button onclick="choose('${center.name}', ${t.id})">${t.title}</button>`;
 
           html += `<li class="${itemClass}">${content}</li>`;
         });
 
-        if(idx === 0) {
-          document.getElementById('center1').innerHTML = html;
-          document.getElementById('title1').innerText = `${center.name} — бос орындар: ${freeCount}`;
-        } else if(idx === 1) {
-          document.getElementById('center2').innerHTML = html;
-          document.getElementById('title2').innerText = `${center.name} — бос орындар: ${freeCount}`;
-        } else if(idx === 2) {
-          document.getElementById('center3').innerHTML = html;
-          document.getElementById('title3').innerText = `${center.name} — бос орындар: ${freeCount}`;
-        }
+        if(idx === 0) document.getElementById('center1').innerHTML = html;
+        else if(idx === 1) document.getElementById('center2').innerHTML = html;
+        else if(idx === 2) document.getElementById('center3').innerHTML = html;
+
+        // блокировка кнопок центров, если выбрана тема
+        let btnId = 'btn-' + (idx === 0 ? 'center1' : idx === 1 ? 'center2' : 'center3');
+        document.getElementById(btnId).disabled = selectedCenter && selectedCenter !== center.name;
       });
     });
 
