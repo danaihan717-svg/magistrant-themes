@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <title>Выбор тем</title>
+  <title>Выбор тем магистрантов</title>
   <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
@@ -43,7 +43,7 @@
       let html = "";
       topics.forEach(t => {
         if (t.student) {
-          html += `<li>❌ ${t.title} — занята (${t.student})</li>`;
+          html += `<li>❌ ${t.title} — выбрана (${t.student}) (${t.time})</li>`;
         } else {
           html += `<li><button onclick="choose(${t.id})">${t.title}</button></li>`;
         }
