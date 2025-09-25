@@ -17,7 +17,9 @@ let topics = [
   { id: 7, title: "Виртуалды және кеңейтілген шындық", student: null, time: null },
   { id: 8, title: "Өнеркәсіпте заттар интернеті (IoT)", student: null, time: null },
   { id: 9, title: "Блокчейн және криптовалюталар", student: null, time: null },
-  { id: 10, title: "Дерекқорларды жобалау", student: null, time: null }
+  { id: 10, title: "Дерекқорларды жобалау", student: null, time: null },
+  { id: 11, title: "Академия қалай көркейту қажет?", student: null, time: null },
+  { id: 12, title: "Пик-никке қашан барамыз? Фантастика", student: null, time: null }
   // …қалғандарын 100-ге дейін қосыңыз
 ];
 
