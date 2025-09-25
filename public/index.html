@@ -7,19 +7,14 @@
   <style>
     body {
       font-family: Arial, sans-serif;
-      font-size: 18px; /* базовый размер текста */
+      font-size: 18px;
     }
 
-    h1 {
-      font-size: 32px;
-    }
-
-    h2 {
-      font-size: 24px;
-    }
+    h1 { font-size: 32px; }
+    h2 { font-size: 24px; }
 
     li {
-      margin-bottom: 12px; /* больше отступ между строками */
+      margin-bottom: 12px;
       list-style: none;
       font-size: 18px;
       transition: background-color 0.3s;
@@ -27,7 +22,7 @@
 
     li button {
       padding: 8px 12px;
-      font-size: 18px; /* размер текста на кнопках */
+      font-size: 18px;
       margin-right: 5px;
       border: none;
       cursor: pointer;
@@ -61,7 +56,7 @@
       text-align: left; 
       background-color: #bbdefb; 
       padding: 10px; 
-      font-size: 20px; /* увеличенный размер для кнопок центров */
+      font-size: 20px;
     }
     #centersList button:disabled { background-color: #eeeeee; cursor: not-allowed; }
   </style>
@@ -135,8 +130,7 @@
 
       centers.forEach((center, idx) => {
         let html = "";
-        let selectedCount = center.topics.filter(t => t.student).length;
-        let freeCount = center.maxStudents - selectedCount;
+        let freeCount = center.topics.filter(t => !t.student).length;
 
         center.topics.forEach(t => {
           let disabled = selectedCenter && selectedCenter !== center.name;
@@ -160,7 +154,9 @@
         else if(idx === 1) document.getElementById('center2').innerHTML = html;
         else if(idx === 2) document.getElementById('center3').innerHTML = html;
 
+        // обновляем текст кнопки центра с количеством свободных тем
         let btnId = 'btn-' + (idx === 0 ? 'center1' : idx === 1 ? 'center2' : 'center3');
+        document.getElementById(btnId).innerText = `${center.name} — бос орындар: ${freeCount}`;
         document.getElementById(btnId).disabled = selectedCenter && selectedCenter !== center.name;
       });
     });
