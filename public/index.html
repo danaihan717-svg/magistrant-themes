@@ -7,7 +7,7 @@
   <style>
     body { font-family: Arial, sans-serif; font-size: 18px; }
     h1 { font-size: 32px; }
-    h2 { font-size: 24px; }
+    h2 { font-size: 24px; margin-top: 30px; }
     li { margin-bottom: 12px; list-style: none; font-size: 18px; transition: background-color 0.3s; }
     li button { padding: 8px 12px; font-size: 18px; margin-right: 5px; border: none; cursor: pointer; border-radius: 4px; transition: background-color 0.3s, transform 0.2s; }
     li button:hover { transform: scale(1.05); }
@@ -19,20 +19,22 @@
     #centersList li { margin-bottom: 12px; }
     #centersList button { width: 100%; text-align: left; background-color: #bbdefb; padding: 10px; font-size: 20px; }
     #centersList button:disabled { background-color: #eeeeee; cursor: not-allowed; }
+    #loginDiv { margin-bottom: 20px; }
+    #userStatus { font-size: 20px; margin-right: 10px; }
   </style>
 </head>
 <body>
   <h1>Сот төрелігі академиясы магистранттарының тақырып таңдау онлайн-платформасы</h1>
 
   <div id="loginDiv">
-    <label>Толық аты-жөніңізді енгізіңіз: 
+    <label id="fioLabel">
+      Толық аты-жөніңізді енгізіңіз: 
       <input type="text" id="fio">
     </label>
-    <button onclick="register()">Кіру</button>
-    <button id="logoutBtn" onclick="logout()" style="display:none; margin-left:10px;">Шығу</button>
+    <button id="loginBtn" onclick="register()">Кіру</button>
+    <span id="userStatus" style="display:none;"></span>
+    <button id="logoutBtn" onclick="logout()" style="display:none;">Шығу</button>
   </div>
-
-  <div id="status" style="margin-top: 20px;"></div>
 
   <div style="margin-top: 10px;">
     <button onclick="downloadReport()">📄 Есепті жүктеу</button>
@@ -60,8 +62,14 @@
 
       socket.emit('registerStudent', fio);
 
-      document.getElementById('loginDiv').style.display = 'block';
-      document.getElementById('status').innerText = "✅ Кіру жасалды: " + fio;
+      // Скрываем поле и кнопку входа
+      document.getElementById('fioLabel').style.display = 'none';
+      document.getElementById('loginBtn').style.display = 'none';
+
+      // Показываем статус и кнопку выхода
+      const userStatus = document.getElementById('userStatus');
+      userStatus.innerText = "Кіру жасалды: " + fio;
+      userStatus.style.display = 'inline-block';
       document.getElementById('logoutBtn').style.display = 'inline-block';
     }
 
@@ -75,13 +83,19 @@
       });
 
       document.getElementById('status').innerText = "";
-      document.getElementById('fio').value = "";
+
+      // Скрываем статус и кнопку выхода
+      document.getElementById('userStatus').style.display = 'none';
       document.getElementById('logoutBtn').style.display = 'none';
+
+      // Показываем поле ввода и кнопку входа
+      document.getElementById('fioLabel').style.display = 'inline';
+      document.getElementById('loginBtn').style.display = 'inline';
+      document.getElementById('fio').value = "";
     }
 
     function showCenter(centerId) {
       if (selectedCenter) return;
-
       ['center1','center2','center3'].forEach(id => {
         document.getElementById(id).style.display = 'none';
       });
