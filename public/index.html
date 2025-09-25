@@ -4,6 +4,12 @@
   <meta charset="UTF-8">
   <title>Сот төрелігі академиясы</title>
   <script src="/socket.io/socket.io.js"></script>
+  <style>
+    li button { padding: 5px 10px; }
+    .free { background-color: #c8e6c9; }    /* зелёный для свободных тем */
+    .taken { background-color: #ffcdd2; }   /* красный для занятых тем */
+    .blocked { background-color: #eeeeee; } /* серый для заблокированных центров */
+  </style>
 </head>
 <body>
   <h1>Сот төрелігі академиясы магистранттарының тақырып таңдау онлайн-платформасы</h1>
@@ -35,36 +41,24 @@
 
     function register() {
       fio = document.getElementById('fio').value.trim();
-      if (!fio) {
-        alert("Толық аты-жөнді енгізіңіз!");
-        return;
-      }
+      if (!fio) { alert("Толық аты-жөнді енгізіңіз!"); return; }
       socket.emit('registerStudent', fio);
       document.getElementById('status').innerText = "✅ Кіру жасалды: " + fio;
     }
 
     function choose(centerName, topicId) {
-      if (!fio) {
-        alert("Бірінші толық аты-жөнді енгізіңіз!");
-        return;
-      }
+      if (!fio) { alert("Бірінші толық аты-жөнді енгізіңіз!"); return; }
       socket.emit('chooseTopic', { fio, centerName, topicId });
     }
 
-    function downloadReport() {
-      window.location.href = "/downloadReport";
-    }
+    function downloadReport() { window.location.href = "/downloadReport"; }
 
     socket.on('topicsList', (centers) => {
-      // Обновляем selectedCenter каждый раз
       selectedCenter = null;
       centers.forEach(center => {
-        if(center.topics.some(t => t.student === fio)) {
-          selectedCenter = center.name;
-        }
+        if(center.topics.some(t => t.student === fio)) selectedCenter = center.name;
       });
 
-      // Генерируем списки и подсчёт свободных мест
       centers.forEach((center, idx) => {
         let html = "";
         let selectedCount = center.topics.filter(t => t.student).length;
@@ -72,12 +66,19 @@
 
         center.topics.forEach(t => {
           let disabled = selectedCenter && selectedCenter !== center.name;
-          let item = t.student 
+          let itemClass = "";
+
+          if(t.student) itemClass = "taken";
+          else if(disabled) itemClass = "blocked";
+          else itemClass = "free";
+
+          let content = t.student 
             ? `❌ ${t.title} — таңдалды (${t.student}) (${t.time})` 
             : disabled 
               ? `🚫 Бұл орталыққа сіздің таңдауыңыз мүмкін емес` 
-              : `<button onclick="choose('${center.name}', ${t.id})">${t.title}</button>`;
-          html += `<li>${item}</li>`;
+              : `<button class="free" onclick="choose('${center.name}', ${t.id})">${t.title}</button>`;
+
+          html += `<li class="${itemClass}">${content}</li>`;
         });
 
         // Обновляем список и заголовок с количеством свободных мест
