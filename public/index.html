@@ -11,8 +11,19 @@
     li { margin-bottom: 12px; list-style: none; font-size: 18px; }
     li button { padding: 8px 12px; font-size: 18px; margin-right: 5px; border: none; cursor: pointer; border-radius: 4px; transition: background-color 0.3s, transform 0.2s; }
     li button:hover { transform: scale(1.05); }
-    .my-selected { background-color: #4caf50; color: white; padding: 5px; border-radius: 4px; animation: highlight 0.5s ease-in-out; }
-    @keyframes highlight { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+    .my-selected {
+      background-color: #4caf50; 
+      color: white; 
+      padding: 5px; 
+      border-radius: 4px; 
+      display: inline-block;
+      animation: fadeInScale 0.6s ease-in-out;
+    }
+    @keyframes fadeInScale {
+      0% { opacity: 0; transform: scale(0.8); }
+      50% { opacity: 1; transform: scale(1.1); }
+      100% { opacity: 1; transform: scale(1); }
+    }
     #centersList li { margin-bottom: 12px; }
     #centersList button { width: 100%; text-align: left; padding: 10px; font-size: 20px; border-radius: 6px; border: none; transition: transform 0.2s; }
     #centersList button:hover { transform: scale(1.03); }
@@ -97,12 +108,10 @@
     socket.on('topicsList', (centers) => {
       selectedCenter = null;
 
-      // Находим центр, где магистрант уже выбрал тему
       centers.forEach(center => {
         if(center.topics.some(t => t.student === fio)) selectedCenter = center.name;
       });
 
-      // Раскрываем выбранный центр
       if(selectedCenter) {
         if(selectedCenter === centers[0].name) document.getElementById('center1').style.display = 'block';
         else if(selectedCenter === centers[1].name) document.getElementById('center2').style.display = 'block';
@@ -115,7 +124,6 @@
         const selectedCount = center.topics.filter(t => t.student).length;
         const freeCount = Math.max(maxSelectable - selectedCount, 0);
 
-        // Цветовая подсказка для кнопки центра
         let btnId = 'btn-' + (idx === 0 ? 'center1' : idx === 1 ? 'center2' : 'center3');
         const btn = document.getElementById(btnId);
         if(selectedCenter && selectedCenter !== center.name || freeCount === 0) btn.className = 'center-blocked';
@@ -124,13 +132,12 @@
         btn.innerText = `${center.name} — бос орындар: ${freeCount}`;
         btn.disabled = selectedCenter && selectedCenter !== center.name;
 
-        // Список тем
         center.topics.forEach(t => {
           let disabled = selectedCenter && selectedCenter !== center.name;
           if(selectedCount >= maxSelectable) disabled = true;
 
           let content = "";
-          if(t.student === fio) content = `✅ ${t.title} — таңдалды (${t.student}) (${t.time})`;
+          if(t.student === fio) content = `<span class="my-selected">✅ ${t.title} — таңдалды (${t.student}) (${t.time})</span>`;
           else if(t.student) content = `❌ ${t.title} — таңдалды (${t.student}) (${t.time})`;
           else if(disabled) content = `🚫 Бұл орталыққа сіздің таңдауыңыз мүмкін емес`;
           else content = `<button onclick="choose('${center.name}', ${t.id})">${t.title}</button>`;
