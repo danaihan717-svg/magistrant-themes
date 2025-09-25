@@ -11,14 +11,14 @@
     li { margin-bottom: 12px; list-style: none; font-size: 18px; }
     li button { padding: 8px 12px; font-size: 18px; margin-right: 5px; border: none; cursor: pointer; border-radius: 4px; transition: background-color 0.3s, transform 0.2s; }
     li button:hover { transform: scale(1.05); }
-    .free button { background-color: #c8e6c9; }
-    .taken { background-color: #ffcdd2; padding: 5px; border-radius: 4px; }
-    .blocked { background-color: #eeeeee; padding: 5px; border-radius: 4px; }
     .my-selected { background-color: #4caf50; color: white; padding: 5px; border-radius: 4px; animation: highlight 0.5s ease-in-out; }
     @keyframes highlight { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
     #centersList li { margin-bottom: 12px; }
-    #centersList button { width: 100%; text-align: left; background-color: #bbdefb; padding: 10px; font-size: 20px; }
-    #centersList button:disabled { background-color: #eeeeee; cursor: not-allowed; }
+    #centersList button { width: 100%; text-align: left; padding: 10px; font-size: 20px; border-radius: 6px; border: none; transition: transform 0.2s; }
+    #centersList button:hover { transform: scale(1.03); }
+    .center-available { background-color: #a5d6a7; color: #000; } /* зелёный */
+    .center-blocked { background-color: #eeeeee; color: #888; cursor: not-allowed; } /* серый */
+    .center-default { background-color: #90caf9; color: #000; } /* синий */
     #loginDiv { margin-bottom: 20px; }
     #userStatus { font-size: 20px; margin-right: 10px; }
   </style>
@@ -42,9 +42,9 @@
 
   <h2>Орталықтар</h2>
   <ul id="centersList">
-    <li><button id="btn-center1" onclick="showCenter('center1')">Мемлекеттік-құқықтық пәндердің ғылыми-білім беру орталығы</button></li>
-    <li><button id="btn-center2" onclick="showCenter('center2')">Азаматтық-құқықтық пәндердің ғылыми-білім беру орталығы</button></li>
-    <li><button id="btn-center3" onclick="showCenter('center3')">Қылмыстық-құқықтық пәндердің ғылыми-білім беру орталығы</button></li>
+    <li><button id="btn-center1" onclick="showCenter('center1')" class="center-default">Мемлекеттік-құқықтық пәндердің ғылыми-білім беру орталығы</button></li>
+    <li><button id="btn-center2" onclick="showCenter('center2')" class="center-default">Азаматтық-құқықтық пәндердің ғылыми-білім беру орталығы</button></li>
+    <li><button id="btn-center3" onclick="showCenter('center3')" class="center-default">Қылмыстық-құқықтық пәндердің ғылыми-білім беру орталығы</button></li>
   </ul>
 
   <ul id="center1" style="display:none;"></ul>
@@ -72,17 +72,21 @@
     }
 
     function logout() {
-      location.reload(); // Полное обновление страницы при выходе
+      location.reload();
     }
 
     function showCenter(centerId) {
-      if (selectedCenter) return; // нельзя менять центр после выбора
+      if (selectedCenter) return;
       ['center1','center2','center3'].forEach(id => document.getElementById(id).style.display = 'none');
       document.getElementById(centerId).style.display = 'block';
     }
 
     function choose(centerName, topicId) {
       if (!fio) { alert("Бірінші толық аты-жөнді енгізіңіз!"); return; }
+
+      const confirmChoice = confirm("Сіз осы тақырыпты таңдауға сенімдісіз бе?");
+      if (!confirmChoice) return;
+
       socket.emit('chooseTopic', { fio, centerName, topicId });
     }
 
@@ -93,12 +97,12 @@
     socket.on('topicsList', (centers) => {
       selectedCenter = null;
 
-      // Определяем, в каком центре магистрант уже выбрал тему
+      // Находим центр, где магистрант уже выбрал тему
       centers.forEach(center => {
         if(center.topics.some(t => t.student === fio)) selectedCenter = center.name;
       });
 
-      // Автоматически раскрываем центр с выбранной темой
+      // Раскрываем выбранный центр
       if(selectedCenter) {
         if(selectedCenter === centers[0].name) document.getElementById('center1').style.display = 'block';
         else if(selectedCenter === centers[1].name) document.getElementById('center2').style.display = 'block';
@@ -111,6 +115,16 @@
         const selectedCount = center.topics.filter(t => t.student).length;
         const freeCount = Math.max(maxSelectable - selectedCount, 0);
 
+        // Цветовая подсказка для кнопки центра
+        let btnId = 'btn-' + (idx === 0 ? 'center1' : idx === 1 ? 'center2' : 'center3');
+        const btn = document.getElementById(btnId);
+        if(selectedCenter && selectedCenter !== center.name || freeCount === 0) btn.className = 'center-blocked';
+        else if(selectedCenter === null) btn.className = 'center-available';
+        else btn.className = 'center-default';
+        btn.innerText = `${center.name} — бос орындар: ${freeCount}`;
+        btn.disabled = selectedCenter && selectedCenter !== center.name;
+
+        // Список тем
         center.topics.forEach(t => {
           let disabled = selectedCenter && selectedCenter !== center.name;
           if(selectedCount >= maxSelectable) disabled = true;
@@ -127,10 +141,6 @@
         if(idx === 0) document.getElementById('center1').innerHTML = html;
         else if(idx === 1) document.getElementById('center2').innerHTML = html;
         else if(idx === 2) document.getElementById('center3').innerHTML = html;
-
-        let btnId = 'btn-' + (idx === 0 ? 'center1' : idx === 1 ? 'center2' : 'center3');
-        document.getElementById(btnId).innerText = `${center.name} — бос орындар: ${freeCount}`;
-        document.getElementById(btnId).disabled = selectedCenter && selectedCenter !== center.name;
       });
     });
 
