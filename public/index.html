@@ -1,157 +1,154 @@
 <!DOCTYPE html>
-<html lang="kz">
+<html lang="kk">
 <head>
   <meta charset="UTF-8">
-  <title>Сот төрелігі академиясы</title>
+  <title>Магистранттардың тақырып таңдауы</title>
   <script src="/socket.io/socket.io.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; font-size: 18px; }
-    h1 { font-size: 32px; }
-    h2 { font-size: 24px; margin-top: 30px; }
-    li { margin-bottom: 12px; list-style: none; font-size: 18px; }
-    li button { padding: 8px 12px; font-size: 18px; margin-right: 5px; border: none; cursor: pointer; border-radius: 4px; transition: background-color 0.3s, transform 0.2s; }
-    li button:hover { transform: scale(1.05); }
-    .my-selected {
-      background-color: #4caf50; 
-      color: white; 
-      padding: 5px; 
-      border-radius: 4px; 
-      display: inline-block;
-      animation: fadeInScale 0.6s ease-in-out;
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background: #f8f9fa;
     }
-    @keyframes fadeInScale {
-      0% { opacity: 0; transform: scale(0.8); }
-      50% { opacity: 1; transform: scale(1.1); }
-      100% { opacity: 1; transform: scale(1); }
+    h1 {
+      color: #2c3e50;
     }
-    #centersList li { margin-bottom: 12px; }
-    #centersList button { width: 100%; text-align: left; padding: 10px; font-size: 20px; border-radius: 6px; border: none; transition: transform 0.2s; }
-    #centersList button:hover { transform: scale(1.03); }
-    .center-available { background-color: #a5d6a7; color: #000; } /* зелёный */
-    .center-blocked { background-color: #eeeeee; color: #888; cursor: not-allowed; } /* серый */
-    .center-default { background-color: #90caf9; color: #000; } /* синий */
-    #loginDiv { margin-bottom: 20px; }
-    #userStatus { font-size: 20px; margin-right: 10px; }
+    .hidden {
+      display: none;
+    }
+    .error {
+      color: red;
+    }
+    .form-box {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      width: 300px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    input {
+      width: 100%;
+      padding: 8px;
+      margin: 6px 0 12px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+    button {
+      padding: 10px 15px;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      width: 100%;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    .center-block {
+      margin-bottom: 25px;
+      padding: 15px;
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    .topic {
+      margin: 5px 0;
+      padding: 8px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .taken {
+      background: #f8d7da;
+      color: #721c24;
+    }
+    .free {
+      background: #d4edda;
+      color: #155724;
+    }
   </style>
 </head>
 <body>
-  <h1>Сот төрелігі академиясы магистранттарының тақырып таңдау онлайн-платформасы</h1>
+  <h1>🎓 Магистранттардың тақырып таңдау жүйесі</h1>
 
-  <div id="loginDiv">
-    <label id="fioLabel">
-      Толық аты-жөніңізді енгізіңіз: 
-      <input type="text" id="fio">
-    </label>
-    <button id="loginBtn" onclick="register()">Кіру</button>
-    <span id="userStatus" style="display:none;"></span>
-    <button id="logoutBtn" onclick="logout()" style="display:none;">Шығу</button>
+  <!-- Логин форма -->
+  <div id="loginForm" class="form-box">
+    <label>ФИО:</label>
+    <input type="text" id="fio" placeholder="Толық аты-жөніңізді енгізіңіз">
+
+    <label>ИИН:</label>
+    <input type="password" id="iin" placeholder="ИИН енгізіңіз">
+
+    <button onclick="login()">Кіру</button>
+    <p class="error" id="loginError"></p>
   </div>
 
-  <div style="margin-top: 10px;">
-    <button onclick="downloadReport()">📄 Есепті жүктеу</button>
+  <!-- Основное меню -->
+  <div id="main" class="hidden">
+    <h2>📚 Орталықтар және тақырыптар</h2>
+    <div id="centers"></div>
   </div>
-
-  <h2>Орталықтар</h2>
-  <ul id="centersList">
-    <li><button id="btn-center1" onclick="showCenter('center1')" class="center-default">Мемлекеттік-құқықтық пәндердің ғылыми-білім беру орталығы</button></li>
-    <li><button id="btn-center2" onclick="showCenter('center2')" class="center-default">Азаматтық-құқықтық пәндердің ғылыми-білім беру орталығы</button></li>
-    <li><button id="btn-center3" onclick="showCenter('center3')" class="center-default">Қылмыстық-құқықтық пәндердің ғылыми-білім беру орталығы</button></li>
-  </ul>
-
-  <ul id="center1" style="display:none;"></ul>
-  <ul id="center2" style="display:none;"></ul>
-  <ul id="center3" style="display:none;"></ul>
 
   <script>
     const socket = io();
-    let fio = "";
-    let selectedCenter = null;
+    let currentFio = null;
 
-    function register() {
-      fio = document.getElementById('fio').value.trim();
-      if (!fio) { alert("Толық аты-жөнді енгізіңіз!"); return; }
+    // Авторизация
+    function login() {
+      const fio = document.getElementById("fio").value.trim();
+      const iin = document.getElementById("iin").value.trim();
 
-      socket.emit('registerStudent', fio);
-
-      document.getElementById('fioLabel').style.display = 'none';
-      document.getElementById('loginBtn').style.display = 'none';
-
-      const userStatus = document.getElementById('userStatus');
-      userStatus.innerText = "Кіру жасалды: " + fio;
-      userStatus.style.display = 'inline-block';
-      document.getElementById('logoutBtn').style.display = 'inline-block';
+      if (!fio || !iin) {
+        document.getElementById("loginError").textContent = "⚠️ ФИО және ИИН енгізіңіз!";
+        return;
+      }
+      socket.emit("registerStudent", { fio, iin });
+      currentFio = fio;
     }
 
-    function logout() {
-      location.reload();
-    }
+    // Ошибка авторизации
+    socket.on("authError", msg => {
+      document.getElementById("loginError").textContent = msg;
+    });
 
-    function showCenter(centerId) {
-      if (selectedCenter) return;
-      ['center1','center2','center3'].forEach(id => document.getElementById(id).style.display = 'none');
-      document.getElementById(centerId).style.display = 'block';
-    }
+    // Получили список тем
+    socket.on("topicsList", centers => {
+      document.getElementById("loginForm").classList.add("hidden");
+      document.getElementById("main").classList.remove("hidden");
 
-    function choose(centerName, topicId) {
-      if (!fio) { alert("Бірінші толық аты-жөнді енгізіңіз!"); return; }
-
-      const confirmChoice = confirm("Сіз осы тақырыпты таңдауға сенімдісіз бе?");
-      if (!confirmChoice) return;
-
-      socket.emit('chooseTopic', { fio, centerName, topicId });
-    }
-
-    function downloadReport() {
-      window.location.href = "/downloadReport";
-    }
-
-    socket.on('topicsList', (centers) => {
-      selectedCenter = null;
+      const container = document.getElementById("centers");
+      container.innerHTML = "";
 
       centers.forEach(center => {
-        if(center.topics.some(t => t.student === fio)) selectedCenter = center.name;
-      });
+        const block = document.createElement("div");
+        block.className = "center-block";
+        block.innerHTML = `<h3>${center.name}</h3>`;
 
-      if(selectedCenter) {
-        if(selectedCenter === centers[0].name) document.getElementById('center1').style.display = 'block';
-        else if(selectedCenter === centers[1].name) document.getElementById('center2').style.display = 'block';
-        else if(selectedCenter === centers[2].name) document.getElementById('center3').style.display = 'block';
-      }
+        center.topics.forEach(topic => {
+          const div = document.createElement("div");
+          div.className = "topic " + (topic.student ? "taken" : "free");
+          div.textContent = `${topic.id}. ${topic.title} ${topic.student ? " — " + topic.student : ""}`;
 
-      centers.forEach((center, idx) => {
-        let html = "";
-        const maxSelectable = 31;
-        const selectedCount = center.topics.filter(t => t.student).length;
-        const freeCount = Math.max(maxSelectable - selectedCount, 0);
-
-        let btnId = 'btn-' + (idx === 0 ? 'center1' : idx === 1 ? 'center2' : 'center3');
-        const btn = document.getElementById(btnId);
-        if(selectedCenter && selectedCenter !== center.name || freeCount === 0) btn.className = 'center-blocked';
-        else if(selectedCenter === null) btn.className = 'center-available';
-        else btn.className = 'center-default';
-        btn.innerText = `${center.name} — бос орындар: ${freeCount}`;
-        btn.disabled = selectedCenter && selectedCenter !== center.name;
-
-        center.topics.forEach(t => {
-          let disabled = selectedCenter && selectedCenter !== center.name;
-          if(selectedCount >= maxSelectable) disabled = true;
-
-          let content = "";
-          if(t.student === fio) content = `<span class="my-selected">✅ ${t.title} — таңдалды (${t.student}) (${t.time})</span>`;
-          else if(t.student) content = `❌ ${t.title} — таңдалды (${t.student}) (${t.time})`;
-          else if(disabled) content = `🚫 Бұл орталыққа сіздің таңдауыңыз мүмкін емес`;
-          else content = `<button onclick="choose('${center.name}', ${t.id})">${t.title}</button>`;
-
-          html += `<li>${content}</li>`;
+          // Можно кликнуть только если тема свободна
+          if (!topic.student) {
+            div.onclick = () => {
+              socket.emit("chooseTopic", {
+                fio: currentFio,
+                centerName: center.name,
+                topicId: topic.id
+              });
+            };
+          }
+          block.appendChild(div);
         });
-
-        if(idx === 0) document.getElementById('center1').innerHTML = html;
-        else if(idx === 1) document.getElementById('center2').innerHTML = html;
-        else if(idx === 2) document.getElementById('center3').innerHTML = html;
+        container.appendChild(block);
       });
     });
 
-    socket.on('topicError', (msg) => alert(msg));
+    // Ошибки выбора темы
+    socket.on("topicError", msg => {
+      alert(msg);
+    });
   </script>
 </body>
 </html>
