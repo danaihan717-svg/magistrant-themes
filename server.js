@@ -5,7 +5,10 @@ const io = require('socket.io')(http);
 
 app.use(express.static('public'));
 
-// Центры учебных программ с реальными темами
+// Подключаем студентов (список хранится в students.js)
+const students = require('./students.js');
+
+// ================== ЦЕНТРЫ ==================
 let centers = [
   {
     name: "Мемлекеттік-құқықтық пәндердің ғылыми-білім беру орталығы",
@@ -126,23 +129,28 @@ let centers = [
   }
 ];
 
-// Отслеживание выбранного центра каждым студентом
-let studentCenter = {}; // { "ФИО студента": "Название центра" }
+// ================== ЛОГИКА ==================
+let studentCenter = {}; // какой центр выбрал студент
 
 io.on('connection', (socket) => {
   console.log("🔗 Жаңа магистрант қосылды");
 
-  socket.on('registerStudent', (fio) => {
+  // Авторизация
+  socket.on('registerStudent', ({ fio, iin }) => {
+    let student = students.find(s => s.fio === fio && s.iin === iin);
+    if (!student) {
+      socket.emit('authError', "❌ Логин немесе ИИН дұрыс емес!");
+      return;
+    }
     socket.fio = fio;
     console.log(`✅ Тіркелді: ${fio}`);
     socket.emit('topicsList', centers);
   });
 
+  // Выбор темы
   socket.on('chooseTopic', ({ fio, centerName, topicId }) => {
-
-    // Проверка: если студент уже выбрал другой центр
-    if(studentCenter[fio] && studentCenter[fio] !== centerName){
-      socket.emit('topicError', `⚠️ Сіз бұрын басқа орталықтан тақырып таңдадыңыз. Бұл орталыққа таңдау мүмкін емес!`);
+    if (studentCenter[fio] && studentCenter[fio] !== centerName) {
+      socket.emit('topicError', `⚠️ Сіз бұрын басқа орталықтан тақырып таңдадыңыз.`);
       return;
     }
 
@@ -151,7 +159,7 @@ io.on('connection', (socket) => {
 
     let selectedCount = center.topics.filter(t => t.student).length;
     if (selectedCount >= center.maxStudents) {
-      socket.emit('topicError', `❌ Бұл орталықта таңдауға рұқсат жоқ (толық)!`);
+      socket.emit('topicError', `❌ Бұл орталықта орын жоқ!`);
       return;
     }
 
@@ -163,18 +171,14 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // Проверка: студент уже выбрал тему в этом центре
     let already = center.topics.find(t => t.student === fio);
     if (already) {
       socket.emit('topicError', "⚠️ Сіз бұл орталықтан тақырып таңдадыңыз!");
       return;
     }
 
-    // Закрепление темы
     topic.student = fio;
     topic.time = new Date().toLocaleString("kk-KZ", { timeZone: "Asia/Almaty" });
-
-    // Запоминаем, какой центр выбрал студент
     studentCenter[fio] = centerName;
 
     console.log(`🎓 ${fio} таңдады: ${topic.title}`);
@@ -186,7 +190,7 @@ io.on('connection', (socket) => {
   });
 });
 
-// CSV отчет
+// Отчёт CSV
 app.get('/downloadReport', (req, res) => {
   let csv = "Толық аты-жөні,Центр,Тақырып,Таңдау уақыты\n";
   centers.forEach(center => {
