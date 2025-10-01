@@ -1,94 +1,67 @@
-// main.js
+const loginDiv = document.getElementById("login");
+const appDiv = document.getElementById("app");
+const loginBtn = document.getElementById("loginBtn");
+const logoutBtn = document.getElementById("logoutBtn");
+const fullNameInput = document.getElementById("fullName");
+const iinInput = document.getElementById("iin");
+const loginError = document.getElementById("loginError");
+const currentUserSpan = document.getElementById("currentUser");
+const centersContainer = document.getElementById("centersContainer");
+const languageSelect = document.getElementById("language");
 
-let currentStudent = null; // текущий магистрант
-let currentLanguage = "kk"; // язык по умолчанию
-let centers = []; // сюда загружается centers.js
-let students = []; // сюда загружается students.js
-let selectedTopics = {}; // { topicId: studentIIN }
-
-document.addEventListener("DOMContentLoaded", () => {
-    const loginForm = document.getElementById("login-form");
-    loginForm.addEventListener("submit", handleLogin);
-
-    // кнопки языка
-    document.getElementById("lang-kk").addEventListener("click", () => switchLanguage("kk"));
-    document.getElementById("lang-ru").addEventListener("click", () => switchLanguage("ru"));
+loginBtn.addEventListener("click", () => {
+  const fullName = fullNameInput.value.trim();
+  const iin = iinInput.value.trim();
+  const student = students.find(s => s.fullName === fullName && s.iin === iin);
+  if (!student) {
+    loginError.textContent = "Студент табылмады / Студент не найден";
+    return;
+  }
+  loggedStudent = student;
+  loginDiv.style.display = "none";
+  appDiv.style.display = "block";
+  currentUserSpan.textContent = `${student.fullName}`;
+  renderCenters();
 });
 
-function handleLogin(event) {
-    event.preventDefault();
-    const fioInput = document.getElementById("fio").value.trim();
-    const iinInput = document.getElementById("iin").value.trim();
+logoutBtn.addEventListener("click", () => {
+  loggedStudent = null;
+  loginDiv.style.display = "block";
+  appDiv.style.display = "none";
+  fullNameInput.value = "";
+  iinInput.value = "";
+  loginError.textContent = "";
+});
 
-    currentStudent = students.find(s => s.fio === fioInput && s.iin === iinInput);
-    if (!currentStudent) {
-        alert("ФИО или ИИН не найден!");
-        return;
-    }
-
-    document.getElementById("login-section").style.display = "none";
-    document.getElementById("student-section").style.display = "block";
-    document.getElementById("student-name").textContent = currentStudent.fio;
-
-    renderCenters();
-}
-
-function logout() {
-    currentStudent = null;
-    document.getElementById("login-section").style.display = "block";
-    document.getElementById("student-section").style.display = "none";
-}
-
-function switchLanguage(lang) {
-    currentLanguage = lang;
-    renderCenters();
-}
+languageSelect.addEventListener("change", renderCenters);
 
 function renderCenters() {
-    const container = document.getElementById("centers");
-    container.innerHTML = "";
+  const lang = languageSelect.value;
+  centersContainer.innerHTML = "";
+  centers.forEach(center => {
+    const div = document.createElement("div");
+    const title = document.createElement("h3");
+    title.textContent = center.name[lang];
+    div.appendChild(title);
 
-    centers.forEach(center => {
-        const centerDiv = document.createElement("div");
-        centerDiv.className = "center";
-
-        const centerTitle = document.createElement("h3");
-        centerTitle.textContent = currentLanguage === "kk" ? center.name_kk : center.name_ru;
-        centerTitle.style.cursor = "pointer";
-        centerTitle.addEventListener("click", () => {
-            const themesDiv = centerDiv.querySelector(".themes");
-            themesDiv.style.display = themesDiv.style.display === "none" ? "block" : "none";
+    const ul = document.createElement("ul");
+    center.topics.forEach(topic => {
+      const li = document.createElement("li");
+      const isLocked = lockedTopics[topic.id] && lockedTopics[topic.id] !== loggedStudent.iin;
+      li.textContent = topic[lang] + (isLocked ? " (занято)" : "");
+      li.style.cursor = isLocked ? "not-allowed" : "pointer";
+      li.addEventListener("click", () => {
+        if (isLocked || lockedTopics[topic.id] === loggedStudent.iin) return;
+        // Снимаем предыдущую тему студента
+        Object.keys(lockedTopics).forEach(k => {
+          if (lockedTopics[k] === loggedStudent.iin) delete lockedTopics[k];
         });
-
-        const themesDiv = document.createElement("div");
-        themesDiv.className = "themes";
-        themesDiv.style.display = "none";
-
-        center.topics.forEach((topic, index) => {
-            const topicDiv = document.createElement("div");
-            topicDiv.className = "topic";
-
-            const topicTitle = document.createElement("span");
-            topicTitle.textContent = currentLanguage === "kk" ? topic.kk : topic.ru;
-
-            const isTaken = selectedTopics[topic.id] && selectedTopics[topic.id] !== currentStudent.iin;
-            const selectBtn = document.createElement("button");
-            selectBtn.textContent = isTaken ? "Занято" : "Выбрать";
-            selectBtn.disabled = isTaken || !!Object.values(selectedTopics).includes(currentStudent.iin);
-
-            selectBtn.addEventListener("click", () => {
-                selectedTopics[topic.id] = currentStudent.iin;
-                alert(`Вы выбрали тему: ${topicTitle.textContent}`);
-                renderCenters(); // обновляем интерфейс, чтобы все видели занятые темы
-            });
-
-            topicDiv.appendChild(topicTitle);
-            topicDiv.appendChild(selectBtn);
-            themesDiv.appendChild(topicDiv);
-        });
-
-        centerDiv.appendChild(centerTitle);
-        centerDiv.appendChild(themesDiv);
-        container.appendChild(centerDiv);
+        lockedTopics[topic.id] = loggedStudent.iin;
+        renderCenters();
+      });
+      ul.appendChild(li);
     });
+    div.appendChild(ul);
+    centersContainer.appendChild(div);
+  });
 }
