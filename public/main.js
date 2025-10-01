@@ -1,90 +1,94 @@
-const socket = io();
+// main.js
 
-let currentFio = null;
-let isAdmin = false;
-let currentLang = "kk";
+let currentStudent = null; // текущий магистрант
+let currentLanguage = "kk"; // язык по умолчанию
+let centers = []; // сюда загружается centers.js
+let students = []; // сюда загружается students.js
+let selectedTopics = {}; // { topicId: studentIIN }
 
-const loginDiv = document.getElementById("login");
-const appDiv = document.getElementById("app");
-const loginBtn = document.getElementById("loginBtn");
-const logoutBtn = document.getElementById("logoutBtn");
-const fioInput = document.getElementById("fio");
-const iinInput = document.getElementById("iin");
-const loginError = document.getElementById("loginError");
-const userNameSpan = document.getElementById("userName");
-const centersDiv = document.getElementById("centers");
-const langSelect = document.getElementById("lang");
-const downloadBtn = document.getElementById("downloadReport");
+document.addEventListener("DOMContentLoaded", () => {
+    const loginForm = document.getElementById("login-form");
+    loginForm.addEventListener("submit", handleLogin);
 
-loginBtn.onclick = () => {
-  const fio = fioInput.value.trim();
-  const iin = iinInput.value.trim();
-  socket.emit("registerStudent", { fio, iin });
-};
-
-logoutBtn.onclick = () => {
-  location.reload();
-};
-
-langSelect.onchange = () => {
-  currentLang = langSelect.value;
-  renderCenters(window.centersData || []);
-};
-
-downloadBtn.onclick = () => {
-  window.open("/downloadReport", "_blank");
-};
-
-socket.on("authError", msg => {
-  loginError.textContent = msg;
+    // кнопки языка
+    document.getElementById("lang-kk").addEventListener("click", () => switchLanguage("kk"));
+    document.getElementById("lang-ru").addEventListener("click", () => switchLanguage("ru"));
 });
 
-socket.on("topicsList", (centers, admin) => {
-  currentFio = fioInput.value.trim();
-  isAdmin = admin;
-  window.centersData = centers;
-  loginDiv.style.display = "none";
-  appDiv.style.display = "block";
-  userNameSpan.textContent = currentFio;
-  renderCenters(centers);
-});
+function handleLogin(event) {
+    event.preventDefault();
+    const fioInput = document.getElementById("fio").value.trim();
+    const iinInput = document.getElementById("iin").value.trim();
 
-function renderCenters(centers) {
-  centersDiv.innerHTML = "";
-  centers.forEach(center => {
-    const cDiv = document.createElement("div");
-    cDiv.className = "center";
+    currentStudent = students.find(s => s.fio === fioInput && s.iin === iinInput);
+    if (!currentStudent) {
+        alert("ФИО или ИИН не найден!");
+        return;
+    }
 
-    const name = currentLang === "kk" ? center.name : center.name_ru;
-    const header = document.createElement("h3");
-    header.textContent = name;
-    cDiv.appendChild(header);
+    document.getElementById("login-section").style.display = "none";
+    document.getElementById("student-section").style.display = "block";
+    document.getElementById("student-name").textContent = currentStudent.fio;
 
-    center.topics.forEach(t => {
-      const tDiv = document.createElement("div");
-      tDiv.className = "topic";
-      tDiv.textContent = currentLang === "kk" ? t.title_kk : t.title_ru;
-      if (t.student) tDiv.classList.add("taken");
+    renderCenters();
+}
 
-      const chooseBtn = document.createElement("button");
-      chooseBtn.textContent = "Таңдау / Выбрать";
-      chooseBtn.disabled = t.student && t.student !== currentFio;
+function logout() {
+    currentStudent = null;
+    document.getElementById("login-section").style.display = "block";
+    document.getElementById("student-section").style.display = "none";
+}
 
-      chooseBtn.onclick = () => {
-        socket.emit("chooseTopic", { fio: currentFio, centerName: center.name, topicId: t.id });
-      };
+function switchLanguage(lang) {
+    currentLanguage = lang;
+    renderCenters();
+}
 
-      tDiv.appendChild(chooseBtn);
+function renderCenters() {
+    const container = document.getElementById("centers");
+    container.innerHTML = "";
 
-      if (t.student === currentFio) {
-        const timeSpan = document.createElement("span");
-        timeSpan.textContent = ` ✅ (${t.time})`;
-        tDiv.appendChild(timeSpan);
-      }
+    centers.forEach(center => {
+        const centerDiv = document.createElement("div");
+        centerDiv.className = "center";
 
-      cDiv.appendChild(tDiv);
+        const centerTitle = document.createElement("h3");
+        centerTitle.textContent = currentLanguage === "kk" ? center.name_kk : center.name_ru;
+        centerTitle.style.cursor = "pointer";
+        centerTitle.addEventListener("click", () => {
+            const themesDiv = centerDiv.querySelector(".themes");
+            themesDiv.style.display = themesDiv.style.display === "none" ? "block" : "none";
+        });
+
+        const themesDiv = document.createElement("div");
+        themesDiv.className = "themes";
+        themesDiv.style.display = "none";
+
+        center.topics.forEach((topic, index) => {
+            const topicDiv = document.createElement("div");
+            topicDiv.className = "topic";
+
+            const topicTitle = document.createElement("span");
+            topicTitle.textContent = currentLanguage === "kk" ? topic.kk : topic.ru;
+
+            const isTaken = selectedTopics[topic.id] && selectedTopics[topic.id] !== currentStudent.iin;
+            const selectBtn = document.createElement("button");
+            selectBtn.textContent = isTaken ? "Занято" : "Выбрать";
+            selectBtn.disabled = isTaken || !!Object.values(selectedTopics).includes(currentStudent.iin);
+
+            selectBtn.addEventListener("click", () => {
+                selectedTopics[topic.id] = currentStudent.iin;
+                alert(`Вы выбрали тему: ${topicTitle.textContent}`);
+                renderCenters(); // обновляем интерфейс, чтобы все видели занятые темы
+            });
+
+            topicDiv.appendChild(topicTitle);
+            topicDiv.appendChild(selectBtn);
+            themesDiv.appendChild(topicDiv);
+        });
+
+        centerDiv.appendChild(centerTitle);
+        centerDiv.appendChild(themesDiv);
+        container.appendChild(centerDiv);
     });
-
-    centersDiv.appendChild(cDiv);
-  });
 }
