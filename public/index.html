@@ -1,42 +1,42 @@
 <!DOCTYPE html>
 <html lang="kk">
 <head>
-  <meta charset="UTF-8">
-  <title>Магистранттардың тақырып таңдау жүйесі</title>
-  <script src="/socket.io/socket.io.js"></script>
-  <script defer src="main.js"></script>
-  <style>
-    body { font-family: Arial, sans-serif; padding: 20px; }
-    #login { max-width: 400px; margin: auto; }
-    #app { display: none; }
-    .center { margin-bottom: 20px; border: 1px solid #ccc; padding: 10px; }
-    .topic { margin-left: 20px; }
-    button { margin-left: 5px; }
-    .taken { color: gray; }
-  </style>
+    <meta charset="UTF-8">
+    <title>Система выбора темы магистрских проектов</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        #student-section { display: none; }
+        .center { margin-bottom: 15px; border: 1px solid #ccc; padding: 10px; }
+        .themes { margin-left: 20px; }
+        .topic { margin: 5px 0; }
+        button { margin-left: 10px; }
+    </style>
 </head>
 <body>
+    <div id="login-section">
+        <h2>Вход для магистрантов</h2>
+        <form id="login-form">
+            <label>ФИО: <input type="text" id="fio" required></label><br><br>
+            <label>ИИН: <input type="text" id="iin" required></label><br><br>
+            <button type="submit">Войти</button>
+        </form>
+    </div>
 
-<div id="login">
-  <h2>Кіру / Вход</h2>
-  <input type="text" id="fio" placeholder="Толық аты-жөні / ФИО"><br><br>
-  <input type="text" id="iin" placeholder="ИИН"><br><br>
-  <button id="loginBtn">Кіру / Войти</button>
-  <p id="loginError" style="color:red"></p>
-</div>
+    <div id="student-section">
+        <h2>Добро пожаловать, <span id="student-name"></span> 
+            <button onclick="logout()">Выйти</button>
+        </h2>
 
-<div id="app">
-  <h2>Қош келдіңіз, <span id="userName"></span> <button id="logoutBtn">Шығу / Выйти</button></h2>
-  <label>Тіл / Язык: </label>
-  <select id="lang">
-    <option value="kk">Қазақша</option>
-    <option value="ru">Русский</option>
-  </select>
+        <div>
+            <button id="lang-kk">Қазақша</button>
+            <button id="lang-ru">Русский</button>
+        </div>
 
-  <div id="centers"></div>
+        <div id="centers"></div>
+    </div>
 
-  <button id="downloadReport" style="margin-top:20px;">CSV жүктеу / Скачать CSV</button>
-</div>
-
+    <script src="students.js"></script>
+    <script src="centers.js"></script>
+    <script src="main.js"></script>
 </body>
 </html>
