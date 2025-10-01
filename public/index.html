@@ -1,42 +1,34 @@
 <!DOCTYPE html>
-<html lang="kk">
+<html lang="kz">
 <head>
-    <meta charset="UTF-8">
-    <title>Система выбора темы магистрских проектов</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        #student-section { display: none; }
-        .center { margin-bottom: 15px; border: 1px solid #ccc; padding: 10px; }
-        .themes { margin-left: 20px; }
-        .topic { margin: 5px 0; }
-        button { margin-left: 10px; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Магистрант Темалары</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div id="login-section">
-        <h2>Вход для магистрантов</h2>
-        <form id="login-form">
-            <label>ФИО: <input type="text" id="fio" required></label><br><br>
-            <label>ИИН: <input type="text" id="iin" required></label><br><br>
-            <button type="submit">Войти</button>
-        </form>
+  <div id="login">
+    <h2>Кіру / Вход</h2>
+    <input type="text" id="fullName" placeholder="ФИО">
+    <input type="text" id="iin" placeholder="ИИН">
+    <button id="loginBtn">Кіру / Войти</button>
+    <p id="loginError" style="color:red;"></p>
+  </div>
+
+  <div id="app" style="display:none;">
+    <div>
+      <span id="currentUser"></span>
+      <button id="logoutBtn">Шығу / Выйти</button>
+      <select id="language">
+        <option value="kz">Қазақша</option>
+        <option value="ru">Русский</option>
+      </select>
     </div>
+    <div id="centersContainer"></div>
+  </div>
 
-    <div id="student-section">
-        <h2>Добро пожаловать, <span id="student-name"></span> 
-            <button onclick="logout()">Выйти</button>
-        </h2>
-
-        <div>
-            <button id="lang-kk">Қазақша</button>
-            <button id="lang-ru">Русский</button>
-        </div>
-
-        <div id="centers"></div>
-    </div>
-
-    <script src="students.js"></script>
-    <script src="centers.js"></script>
-    <script src="main.js"></script>
+  <script src="students.js"></script>
+  <script src="centers.js"></script>
+  <script src="main.js"></script>
 </body>
 </html>
