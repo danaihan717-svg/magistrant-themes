@@ -1,55 +1,33 @@
-const express = require('express');
+// server.js
+const express = require("express");
+const http = require("http");
+const { Server } = require("socket.io");
+const students = require("./students");
+const centers = require("./centers");
+
 const app = express();
-const http = require('http').createServer(app);
-const io = require('socket.io')(http);
-const path = require('path');
+const server = http.createServer(app);
+const io = new Server(server);
 
-const students = require('./students');
-const centers = require('./centers');
-
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static("public"));
 app.use(express.json());
 
-let selectedTopics = {}; // { "центрID-темаID": studentIIN }
+// хранение выбранных тем: { centerId: { themeIndex: studentIIN } }
+const selectedThemes = {};
 
-app.get('/api/students', (req, res) => {
-  res.json(students);
-});
+app.get("/students", (req, res) => res.json(students));
+app.get("/centers", (req, res) => res.json(centers));
+app.get("/selected", (req, res) => res.json(selectedThemes));
 
-app.get('/api/centers', (req, res) => {
-  res.json(centers);
-});
-
-app.post('/api/select-topic', (req, res) => {
-  const { studentIIN, centerId, topicId } = req.body;
-  const key = `${centerId}-${topicId}`;
-  if (selectedTopics[key]) {
-    return res.status(400).json({ message: 'Тема уже выбрана' });
-  }
-  // Проверяем, не выбрал ли студент другую тему
-  const alreadySelected = Object.entries(selectedTopics).find(
-    ([k, v]) => v === studentIIN
-  );
-  if (alreadySelected) {
-    return res.status(400).json({ message: 'Вы уже выбрали тему' });
-  }
-  selectedTopics[key] = studentIIN;
-  io.emit('topic-selected', { key, studentIIN, time: new Date() });
-  res.json({ message: 'Тема успешно выбрана', key });
-});
-
-app.post('/api/logout', (req, res) => {
-  // Для простоты просто отвечаем
-  res.json({ message: 'Выход выполнен' });
-});
-
-io.on('connection', (socket) => {
-  console.log('Пользователь подключен');
-  // Можно отправить текущие выбранные темы
-  socket.emit('init-selected', selectedTopics);
+io.on("connection", (socket) => {
+  socket.on("selectTheme", ({ centerId, themeIndex, studentIIN }) => {
+    if (!selectedThemes[centerId]) selectedThemes[centerId] = {};
+    if (!selectedThemes[centerId][themeIndex]) {
+      selectedThemes[centerId][themeIndex] = studentIIN;
+      io.emit("updateSelected", { centerId, themeIndex, studentIIN, time: new Date().toLocaleString() });
+    }
+  });
 });
 
 const PORT = process.env.PORT || 3000;
-http.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+server.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
