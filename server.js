@@ -1,69 +1,77 @@
+// server.js
 const express = require("express");
-const http = require("http");
-const socketIo = require("socket.io");
+const app = express();
 const path = require("path");
+const bodyParser = require("body-parser");
 const fs = require("fs");
 
-const students = require("./students"); // [{ fio, iin, isAdmin }]
-const centers = require("./centers");   // Ваш centers.js с 30 темами в каждом центре
-
-const app = express();
-const server = http.createServer(app);
-const io = socketIo(server);
-
 app.use(express.static(path.join(__dirname, "public")));
+app.use(bodyParser.json());
 
-// API для скачивания отчета
-app.get("/downloadReport", (req, res) => {
-  let csv = "Центр,Тема (Каз),Тема (Рус),ФИО,Время выбора\n";
-  centers.forEach(center => {
-    center.topics.forEach(t => {
-      csv += `"${center.name}","${t.title_kk}","${t.title_ru}","${t.student || ""}","${t.time || ""}"\n`;
-    });
-  });
-  res.setHeader("Content-Type", "text/csv");
-  res.setHeader("Content-Disposition", "attachment; filename=report.csv");
-  res.send(csv);
+// Загружаем студентов
+const students = require("./students.js");
+
+// Загружаем центры с темами
+const centers = require("./centers.js");
+
+// В памяти хранение выбранных тем
+// Формат: { "topicId": { fio: "ФИО", time: "время выбора" } }
+let selectedTopics = {};
+
+// Маршрут для фронтенда
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public/index.html"));
 });
 
-// Socket.IO
-io.on("connection", socket => {
+// Проверка логина студента
+app.post("/login", (req, res) => {
+  const { fio, iin } = req.body;
+  const student = students.find(s => s.fio === fio && s.iin === iin);
+  if (student) {
+    res.json({ success: true, student });
+  } else {
+    res.json({ success: false, message: "Студент не найден" });
+  }
+});
 
-  socket.on("registerStudent", ({ fio, iin }) => {
-    const student = students.find(s => s.fio === fio && s.iin === iin);
-    if (!student) {
-      socket.emit("authError", "ФИО немесе ИИН қате / ФИО или ИИН неверны");
-      return;
-    }
-    socket.emit("topicsList", centers, student.isAdmin);
-  });
+// Получить все центры и темы (с пометкой, занята или нет)
+app.get("/centers", (req, res) => {
+  const response = centers.map(center => ({
+    ...center,
+    topics: center.topics.map(t => ({
+      ...t,
+      selected: selectedTopics[t.id] ? true : false,
+      student: selectedTopics[t.id] ? selectedTopics[t.id].fio : null,
+      time: selectedTopics[t.id] ? selectedTopics[t.id].time : null
+    }))
+  }));
+  res.json(response);
+});
 
-  socket.on("chooseTopic", ({ fio, centerName, topicId }) => {
-    const center = centers.find(c => c.name === centerName);
-    if (!center) return;
+// Выбор темы
+app.post("/select-topic", (req, res) => {
+  const { topicId, fio } = req.body;
 
-    const topic = center.topics.find(t => t.id === topicId);
-    if (!topic) return;
+  // Проверка, что тема еще свободна
+  if (selectedTopics[topicId]) {
+    return res.json({ success: false, message: "Тема уже выбрана" });
+  }
 
-    // Проверка, выбрал ли студент уже тему
-    const alreadyChosen = centers.some(c => c.topics.some(t => t.student === fio));
-    if (alreadyChosen && topic.student !== fio) {
-      socket.emit("authError", "Сіз бұрын тақырып таңдағансыз / Вы уже выбрали тему");
-      return;
-    }
+  // Сохраняем выбор
+  const now = new Date().toLocaleString();
+  selectedTopics[topicId] = { fio, time: now };
+  res.json({ success: true, topicId, fio, time: now });
+});
 
-    // Если тема свободна или уже выбрана этим студентом
-    if (!topic.student || topic.student === fio) {
-      topic.student = fio;
-      topic.time = new Date().toLocaleString();
-    }
-
-    // Отправляем обновленный список всем клиентам
-    io.emit("topicsList", centers);
-  });
+// Сброс темы (если нужно для админа)
+app.post("/unselect-topic", (req, res) => {
+  const { topicId } = req.body;
+  if (selectedTopics[topicId]) {
+    delete selectedTopics[topicId];
+    return res.json({ success: true });
+  }
+  res.json({ success: false, message: "Тема не была выбрана" });
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`Server started on port ${PORT}`));
