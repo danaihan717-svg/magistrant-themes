@@ -1,77 +1,55 @@
-// server.js
-const express = require("express");
+const express = require('express');
 const app = express();
-const path = require("path");
-const bodyParser = require("body-parser");
-const fs = require("fs");
+const http = require('http').createServer(app);
+const io = require('socket.io')(http);
+const path = require('path');
 
-app.use(express.static(path.join(__dirname, "public")));
-app.use(bodyParser.json());
+const students = require('./students');
+const centers = require('./centers');
 
-// Загружаем студентов
-const students = require("./students.js");
+app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.json());
 
-// Загружаем центры с темами
-const centers = require("./centers.js");
+let selectedTopics = {}; // { "центрID-темаID": studentIIN }
 
-// В памяти хранение выбранных тем
-// Формат: { "topicId": { fio: "ФИО", time: "время выбора" } }
-let selectedTopics = {};
-
-// Маршрут для фронтенда
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public/index.html"));
+app.get('/api/students', (req, res) => {
+  res.json(students);
 });
 
-// Проверка логина студента
-app.post("/login", (req, res) => {
-  const { fio, iin } = req.body;
-  const student = students.find(s => s.fio === fio && s.iin === iin);
-  if (student) {
-    res.json({ success: true, student });
-  } else {
-    res.json({ success: false, message: "Студент не найден" });
+app.get('/api/centers', (req, res) => {
+  res.json(centers);
+});
+
+app.post('/api/select-topic', (req, res) => {
+  const { studentIIN, centerId, topicId } = req.body;
+  const key = `${centerId}-${topicId}`;
+  if (selectedTopics[key]) {
+    return res.status(400).json({ message: 'Тема уже выбрана' });
   }
-});
-
-// Получить все центры и темы (с пометкой, занята или нет)
-app.get("/centers", (req, res) => {
-  const response = centers.map(center => ({
-    ...center,
-    topics: center.topics.map(t => ({
-      ...t,
-      selected: selectedTopics[t.id] ? true : false,
-      student: selectedTopics[t.id] ? selectedTopics[t.id].fio : null,
-      time: selectedTopics[t.id] ? selectedTopics[t.id].time : null
-    }))
-  }));
-  res.json(response);
-});
-
-// Выбор темы
-app.post("/select-topic", (req, res) => {
-  const { topicId, fio } = req.body;
-
-  // Проверка, что тема еще свободна
-  if (selectedTopics[topicId]) {
-    return res.json({ success: false, message: "Тема уже выбрана" });
+  // Проверяем, не выбрал ли студент другую тему
+  const alreadySelected = Object.entries(selectedTopics).find(
+    ([k, v]) => v === studentIIN
+  );
+  if (alreadySelected) {
+    return res.status(400).json({ message: 'Вы уже выбрали тему' });
   }
-
-  // Сохраняем выбор
-  const now = new Date().toLocaleString();
-  selectedTopics[topicId] = { fio, time: now };
-  res.json({ success: true, topicId, fio, time: now });
+  selectedTopics[key] = studentIIN;
+  io.emit('topic-selected', { key, studentIIN, time: new Date() });
+  res.json({ message: 'Тема успешно выбрана', key });
 });
 
-// Сброс темы (если нужно для админа)
-app.post("/unselect-topic", (req, res) => {
-  const { topicId } = req.body;
-  if (selectedTopics[topicId]) {
-    delete selectedTopics[topicId];
-    return res.json({ success: true });
-  }
-  res.json({ success: false, message: "Тема не была выбрана" });
+app.post('/api/logout', (req, res) => {
+  // Для простоты просто отвечаем
+  res.json({ message: 'Выход выполнен' });
+});
+
+io.on('connection', (socket) => {
+  console.log('Пользователь подключен');
+  // Можно отправить текущие выбранные темы
+  socket.emit('init-selected', selectedTopics);
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server started on port ${PORT}`));
+http.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
