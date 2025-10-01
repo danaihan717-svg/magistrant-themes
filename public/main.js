@@ -1,67 +1,111 @@
-const loginDiv = document.getElementById("login");
-const appDiv = document.getElementById("app");
-const loginBtn = document.getElementById("loginBtn");
-const logoutBtn = document.getElementById("logoutBtn");
-const fullNameInput = document.getElementById("fullName");
-const iinInput = document.getElementById("iin");
-const loginError = document.getElementById("loginError");
-const currentUserSpan = document.getElementById("currentUser");
-const centersContainer = document.getElementById("centersContainer");
-const languageSelect = document.getElementById("language");
+let currentStudent = null;
+let currentLang = 'kz';
+let centers = [];
+let selectedTopics = {};
 
-loginBtn.addEventListener("click", () => {
-  const fullName = fullNameInput.value.trim();
-  const iin = iinInput.value.trim();
-  const student = students.find(s => s.fullName === fullName && s.iin === iin);
-  if (!student) {
-    loginError.textContent = "Студент табылмады / Студент не найден";
-    return;
-  }
-  loggedStudent = student;
-  loginDiv.style.display = "none";
-  appDiv.style.display = "block";
-  currentUserSpan.textContent = `${student.fullName}`;
-  renderCenters();
+document.addEventListener('DOMContentLoaded', async () => {
+  const studentsRes = await fetch('/api/students');
+  const studentsList = await studentsRes.json();
+
+  const centersRes = await fetch('/api/centers');
+  centers = await centersRes.json();
+
+  const loginForm = document.getElementById('login-form');
+  loginForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const iin = document.getElementById('iin').value.trim();
+    const student = studentsList.find(s => s.IIN === iin);
+    if (!student) return alert('Студент не найден');
+    currentStudent = student;
+    document.getElementById('login-section').style.display = 'none';
+    document.getElementById('main-section').style.display = 'block';
+    document.getElementById('student-name').textContent = student.name;
+    renderCenters();
+  });
+
+  document.getElementById('logout-btn').addEventListener('click', async () => {
+    await fetch('/api/logout', { method: 'POST' });
+    location.reload();
+  });
+
+  document.getElementById('lang-kz').addEventListener('click', () => {
+    currentLang = 'kz';
+    renderCenters();
+  });
+
+  document.getElementById('lang-ru').addEventListener('click', () => {
+    currentLang = 'ru';
+    renderCenters();
+  });
+
+  const socket = io();
+  socket.on('topic-selected', ({ key, studentIIN, time }) => {
+    selectedTopics[key] = { studentIIN, time };
+    renderCenters();
+  });
+
+  socket.on('init-selected', (data) => {
+    selectedTopics = data;
+    renderCenters();
+  });
 });
-
-logoutBtn.addEventListener("click", () => {
-  loggedStudent = null;
-  loginDiv.style.display = "block";
-  appDiv.style.display = "none";
-  fullNameInput.value = "";
-  iinInput.value = "";
-  loginError.textContent = "";
-});
-
-languageSelect.addEventListener("change", renderCenters);
 
 function renderCenters() {
-  const lang = languageSelect.value;
-  centersContainer.innerHTML = "";
-  centers.forEach(center => {
-    const div = document.createElement("div");
-    const title = document.createElement("h3");
-    title.textContent = center.name[lang];
-    div.appendChild(title);
+  const container = document.getElementById('centers-container');
+  container.innerHTML = '';
+  centers.forEach((center, ci) => {
+    const centerDiv = document.createElement('div');
+    const title = document.createElement('h3');
+    title.textContent = currentLang === 'kz' ? center.name_kz : center.name_ru;
+    title.style.cursor = 'pointer';
+    centerDiv.appendChild(title);
 
-    const ul = document.createElement("ul");
-    center.topics.forEach(topic => {
-      const li = document.createElement("li");
-      const isLocked = lockedTopics[topic.id] && lockedTopics[topic.id] !== loggedStudent.iin;
-      li.textContent = topic[lang] + (isLocked ? " (занято)" : "");
-      li.style.cursor = isLocked ? "not-allowed" : "pointer";
-      li.addEventListener("click", () => {
-        if (isLocked || lockedTopics[topic.id] === loggedStudent.iin) return;
-        // Снимаем предыдущую тему студента
-        Object.keys(lockedTopics).forEach(k => {
-          if (lockedTopics[k] === loggedStudent.iin) delete lockedTopics[k];
-        });
-        lockedTopics[topic.id] = loggedStudent.iin;
-        renderCenters();
+    const topicsDiv = document.createElement('div');
+    topicsDiv.style.display = 'none';
+    center.topics.forEach((topic, ti) => {
+      const key = `${ci}-${ti}`;
+      const isSelected = selectedTopics[key];
+      const btn = document.createElement('button');
+      btn.textContent = currentLang === 'kz' ? topic.kz : topic.ru;
+      btn.disabled = isSelected && isSelected.studentIIN !== currentStudent.IIN;
+      if (isSelected) {
+        btn.textContent += ` (Выбран: ${studentsNameByIIN(isSelected.studentIIN)}, ${new Date(isSelected.time).toLocaleTimeString()})`;
+      }
+      btn.addEventListener('click', async () => {
+        try {
+          const res = await fetch('/api/select-topic', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ studentIIN: currentStudent.IIN, centerId: ci, topicId: ti })
+          });
+          const data = await res.json();
+          if (res.ok) {
+            selectedTopics[key] = { studentIIN: currentStudent.IIN, time: new Date() };
+            renderCenters();
+          } else {
+            alert(data.message);
+          }
+        } catch (err) {
+          console.error(err);
+        }
       });
-      ul.appendChild(li);
+      topicsDiv.appendChild(btn);
+      topicsDiv.appendChild(document.createElement('br'));
     });
-    div.appendChild(ul);
-    centersContainer.appendChild(div);
+
+    title.addEventListener('click', () => {
+      topicsDiv.style.display = topicsDiv.style.display === 'none' ? 'block' : 'none';
+    });
+
+    centerDiv.appendChild(topicsDiv);
+    container.appendChild(centerDiv);
   });
+}
+
+function studentsNameByIIN(iin) {
+  const student = currentStudent && currentStudent.IIN === iin ? currentStudent : null;
+  if (!student) {
+    return iin;
+  }
+  return student.name;
 }
