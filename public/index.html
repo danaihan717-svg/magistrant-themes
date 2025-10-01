@@ -1,65 +1,42 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="kk">
 <head>
   <meta charset="UTF-8">
-  <title>Выбор темы магистра</title>
+  <title>Магистранттардың тақырып таңдау жүйесі</title>
   <script src="/socket.io/socket.io.js"></script>
+  <script defer src="main.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    #login { max-width: 400px; margin: auto; }
+    #app { display: none; }
+    .center { margin-bottom: 20px; border: 1px solid #ccc; padding: 10px; }
+    .topic { margin-left: 20px; }
+    button { margin-left: 5px; }
+    .taken { color: gray; }
+  </style>
 </head>
 <body>
-  <h1>Выбор темы магистранта</h1>
 
-  <div id="login">
-    <input id="fio" placeholder="ФИО">
-    <input id="iin" placeholder="ИИН">
-    <button onclick="login()">Войти</button>
-  </div>
+<div id="login">
+  <h2>Кіру / Вход</h2>
+  <input type="text" id="fio" placeholder="Толық аты-жөні / ФИО"><br><br>
+  <input type="text" id="iin" placeholder="ИИН"><br><br>
+  <button id="loginBtn">Кіру / Войти</button>
+  <p id="loginError" style="color:red"></p>
+</div>
 
-  <div id="topics" style="display:none;">
-    <h2>Темы</h2>
-    <div id="centers"></div>
-    <button onclick="clearAll()" id="clearBtn" style="display:none;">Очистить все (для админа)</button>
-    <button onclick="downloadReport()">Скачать CSV</button>
-  </div>
+<div id="app">
+  <h2>Қош келдіңіз, <span id="userName"></span> <button id="logoutBtn">Шығу / Выйти</button></h2>
+  <label>Тіл / Язык: </label>
+  <select id="lang">
+    <option value="kk">Қазақша</option>
+    <option value="ru">Русский</option>
+  </select>
 
-  <script>
-    const socket = io();
-    let isAdmin = false;
+  <div id="centers"></div>
 
-    function login() {
-      const fio = document.getElementById('fio').value;
-      const iin = document.getElementById('iin').value;
-      socket.emit('registerStudent', { fio, iin });
-    }
+  <button id="downloadReport" style="margin-top:20px;">CSV жүктеу / Скачать CSV</button>
+</div>
 
-    socket.on('authError', msg => alert(msg));
-
-    socket.on('topicsList', (centers, admin) => {
-      isAdmin = admin;
-      document.getElementById('login').style.display = 'none';
-      document.getElementById('topics').style.display = 'block';
-      document.getElementById('clearBtn').style.display = admin ? 'block' : 'none';
-
-      const container = document.getElementById('centers');
-      container.innerHTML = '';
-      centers.forEach(c => {
-        const div = document.createElement('div');
-        div.innerHTML = `<h3>${c.name.ru}</h3>`;
-        c.topics.forEach(t => {
-          const btn = document.createElement('button');
-          btn.textContent = t.title.ru + (t.student ? ` (занято: ${t.student})` : '');
-          btn.disabled = !!t.student;
-          btn.onclick = () => socket.emit('chooseTopic', { fio: document.getElementById('fio').value, centerName: c.name.ru, topicId: t.id });
-          div.appendChild(btn);
-          div.appendChild(document.createElement('br'));
-        });
-        container.appendChild(div);
-      });
-    });
-
-    socket.on('topicError', msg => alert(msg));
-
-    function clearAll() { socket.emit('clearAll'); }
-    function downloadReport() { window.location.href = '/downloadReport'; }
-  </script>
 </body>
 </html>
