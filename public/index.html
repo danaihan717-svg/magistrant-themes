@@ -1,36 +1,40 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Магистранты Темы</title>
-  <script src="/socket.io/socket.io.js"></script>
-  <script src="main.js" defer></script>
+<meta charset="UTF-8">
+<title>Магистрант Темалар</title>
+<style>
+body { font-family: Arial; padding: 20px; }
+#login, #main { margin-top: 20px; }
+.center { margin-top: 10px; border: 1px solid #ccc; padding: 10px; }
+.theme { margin-left: 20px; cursor: pointer; }
+.selected { color: green; font-weight: bold; }
+.hidden { display: none; }
+button { margin-left: 10px; }
+</style>
 </head>
 <body>
-  <div id="login-section">
-    <h2>Вход для магистранта</h2>
-    <form id="login-form">
-      <label>ФИО:</label>
-      <input type="text" id="name" disabled placeholder="Автозаполнение по ИИН">
-      <br>
-      <label>ИИН:</label>
-      <input type="text" id="iin" required>
-      <button type="submit">Войти</button>
-    </form>
+
+<div id="login">
+  <h2>Кіру / Вход</h2>
+  <input type="text" id="name" placeholder="ФИО магистранта">
+  <input type="text" id="iin" placeholder="ИИН">
+  <button id="loginBtn">Кіру</button>
+</div>
+
+<div id="main" class="hidden">
+  <div>
+    <span id="studentName"></span>
+    <button id="logoutBtn">Шығу / Выход</button>
+    <select id="langSelect">
+      <option value="kz">Қазақша</option>
+      <option value="ru">Русский</option>
+    </select>
   </div>
+  <div id="centersContainer"></div>
+</div>
 
-  <div id="main-section" style="display:none">
-    <div>
-      <span id="student-name"></span>
-      <button id="logout-btn">Выход</button>
-    </div>
-
-    <div>
-      <button id="lang-kz">Қазақша</button>
-      <button id="lang-ru">Русский</button>
-    </div>
-
-    <div id="centers-container"></div>
-  </div>
+<script src="/socket.io/socket.io.js"></script>
+<script src="main.js"></script>
 </body>
 </html>
