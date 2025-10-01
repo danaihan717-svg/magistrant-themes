@@ -1,33 +1,108 @@
-// server.js
-const express = require("express");
-const http = require("http");
-const { Server } = require("socket.io");
-const students = require("./students");
-const centers = require("./centers");
-
+const express = require('express');
 const app = express();
-const server = http.createServer(app);
-const io = new Server(server);
+const http = require('http').createServer(app);
+const io = require('socket.io')(http);
 
-app.use(express.static("public"));
-app.use(express.json());
+// Загружаем списки студентов и центров
+const students = require('./students');
+const centers = require('./centers');
 
-// хранение выбранных тем: { centerId: { themeIndex: studentIIN } }
-const selectedThemes = {};
+app.use(express.static('public'));
 
-app.get("/students", (req, res) => res.json(students));
-app.get("/centers", (req, res) => res.json(centers));
-app.get("/selected", (req, res) => res.json(selectedThemes));
+// Кто какой центр выбрал (ФИО → центр)
+let studentCenter = {};
 
-io.on("connection", (socket) => {
-  socket.on("selectTheme", ({ centerId, themeIndex, studentIIN }) => {
-    if (!selectedThemes[centerId]) selectedThemes[centerId] = {};
-    if (!selectedThemes[centerId][themeIndex]) {
-      selectedThemes[centerId][themeIndex] = studentIIN;
-      io.emit("updateSelected", { centerId, themeIndex, studentIIN, time: new Date().toLocaleString() });
+io.on('connection', (socket) => {
+  console.log("🔗 Жаңа магистрант қосылды");
+
+  // Авторизация
+  socket.on('registerStudent', ({ fio, iin }) => {
+    const student = students.find(s => s.fio === fio && s.iin === iin);
+    if (!student) {
+      socket.emit('authError', "❌ ФИО немесе ИИН қате!");
+      return;
     }
+
+    socket.fio = fio;
+    socket.isAdmin = student.isAdmin || false;
+
+    console.log(`✅ Тіркелді: ${fio} ${socket.isAdmin ? "(ADMIN)" : ""}`);
+
+    // отправляем список центров + права админа
+    socket.emit('topicsList', centers, socket.isAdmin);
+  });
+
+  // Выбор темы студентом
+  socket.on('chooseTopic', ({ fio, centerName, topicId }) => {
+    const center = centers.find(c => c.name === centerName);
+    if (!center) return;
+
+    // Проверка: если студент уже выбрал другой центр
+    if (studentCenter[fio] && studentCenter[fio] !== centerName) {
+      socket.emit('topicError', "⚠️ Сіз басқа орталықтан тақырып таңдадыңыз!");
+      return;
+    }
+
+    let topic = center.topics.find(t => t.id === topicId);
+    if (!topic) return;
+
+    if (topic.student) {
+      socket.emit('topicError', "❌ Бұл тақырып толы!");
+      return;
+    }
+
+    // Проверка: студент уже выбрал тему в этом центре
+    let already = center.topics.find(t => t.student === fio);
+    if (already) {
+      socket.emit('topicError', "⚠️ Сіз бұл орталықтан тақырып таңдадыңыз!");
+      return;
+    }
+
+    // Фиксация выбора
+    topic.student = fio;
+    topic.time = new Date().toLocaleString("kk-KZ", { timeZone: "Asia/Almaty" });
+    studentCenter[fio] = centerName;
+
+    console.log(`🎓 ${fio} таңдады: ${topic.title}`);
+
+    // Обновляем у всех
+    io.emit('topicsList', centers, socket.isAdmin);
+  });
+
+  // Очистка всех выборов (только админ)
+  socket.on("clearAll", () => {
+    if (!socket.isAdmin) return; // только админ может
+    centers.forEach(center => {
+      center.topics.forEach(topic => {
+        topic.student = null;
+        topic.time = null;
+      });
+    });
+    studentCenter = {}; // сбрасываем связи
+    console.log("🧹 Админ очистил все выборы");
+    io.emit("topicsList", centers, true);
+  });
+
+  // Выход
+  socket.on('disconnect', () => {
+    if (socket.fio) console.log(`❎ Шығып кетті: ${socket.fio}`);
   });
 });
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+// CSV отчет
+app.get('/downloadReport', (req, res) => {
+  let csv = "Толық аты-жөні,Центр,Тақырып,Таңдау уақыты\n";
+  centers.forEach(center => {
+    center.topics.forEach(t => {
+      if (t.student) csv += `${t.student},${center.name},${t.title},${t.time}\n`;
+    });
+  });
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', 'attachment; filename=report.csv');
+  res.send(csv);
+});
+
+// запуск сервера
+http.listen(3000, "0.0.0.0", () => {
+  console.log("🚀 Сервер іске қосылды: http://0.0.0.0:3000");
+});
