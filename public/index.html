@@ -21,10 +21,17 @@ button:hover{ background:#0056b3; }
 .free { background:#d4edda; color:#155724; }
 .top-bar { display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;}
 .my-choice { background:#fff3cd; border:1px solid #ffeeba; padding:15px; border-radius:10px; margin-bottom:20px; }
+.lang-switch { margin-bottom:15px; }
+.lang-switch button { margin-right:5px; }
 </style>
 </head>
 <body>
 <h1>🎓 Магистранттардың тақырып таңдау жүйесі</h1>
+
+<div class="lang-switch">
+  <button onclick="setLanguage('kk')">Қазақша</button>
+  <button onclick="setLanguage('ru')">Русский</button>
+</div>
 
 <div id="loginForm" class="form-box">
   <label>ИИН:</label>
@@ -54,16 +61,24 @@ button:hover{ background:#0056b3; }
 <script>
 const socket = io();
 let currentFio = null;
+let language = 'kk'; // по умолчанию казахский
+let centersData = [];
+
+function setLanguage(lang){
+  language = lang;
+  if(centersData.length>0) renderCenters(centersData);
+}
 
 function login(){
   const iin = document.getElementById("iin").value.trim();
-  if(!iin){ document.getElementById("loginError").textContent="⚠️ ИИН енгізіңіз!"; return; }
+  if(!iin){ document.getElementById("loginError").textContent = "⚠️ ИИН енгізіңіз!"; return; }
   socket.emit("registerStudent",{ iin });
 }
 
 socket.on("authError", msg => { document.getElementById("loginError").textContent = msg; });
 
 socket.on("topicsList", (centers,isAdmin)=>{
+  centersData = centers;
   const student = centers.flatMap(c=>c.topics).find(t=>t.student);
   currentFio = student ? student.student : null;
 
@@ -79,6 +94,12 @@ socket.on("topicsList", (centers,isAdmin)=>{
     document.getElementById("studentButtons").classList.remove("hidden");
   }
 
+  renderCenters(centers);
+});
+
+socket.on("topicError", msg=>{ alert(msg); });
+
+function renderCenters(centers){
   const container = document.getElementById("centers");
   container.innerHTML="";
 
@@ -94,7 +115,7 @@ socket.on("topicsList", (centers,isAdmin)=>{
     document.getElementById("myChoice").classList.remove("hidden");
     document.getElementById("centersTitle").classList.add("hidden");
     container.classList.add("hidden");
-    document.getElementById("myChoice").textContent=`✅ Сіз таңдадыңыз: ${myTopic.title.kk} (${myCenter.name.kk}) — ${myTopic.time}`;
+    document.getElementById("myChoice").textContent=`✅ ${language==='kk'?'Сіз таңдадыңыз':'Вы выбрали'}: ${myTopic.title[language]} (${myCenter.name[language]}) — ${myTopic.time}`;
     return;
   }
 
@@ -105,7 +126,7 @@ socket.on("topicsList", (centers,isAdmin)=>{
   centers.forEach(center=>{
     const block=document.createElement("div"); block.className="center-block";
     const header=document.createElement("div"); header.className="center-header";
-    header.textContent=center.name.kk;
+    header.textContent=center.name[language];
     header.onclick=()=>{ const topicsDiv=block.querySelector(".topics"); topicsDiv.style.display=(topicsDiv.style.display==="none")?"block":"none"; };
     block.appendChild(header);
 
@@ -113,19 +134,23 @@ socket.on("topicsList", (centers,isAdmin)=>{
     center.topics.forEach(topic=>{
       const div=document.createElement("div");
       div.className="topic "+(topic.student?"taken":"free");
-      div.textContent=`${topic.id}. ${topic.title.kk} ${topic.student? " — "+topic.student+" ("+topic.time+")":""}`;
-      if(!topic.student){ div.onclick=()=>{ if(confirm(`Сіз таңдадыңыз ба: "${topic.title.kk}" ?`)) socket.emit("chooseTopic",{ fio: currentFio, centerName:center.name.kk, topicId:topic.id }); }; }
+      div.textContent=`${topic.id}. ${topic.title[language]} ${topic.student? " — "+topic.student+" ("+topic.time+")":""}`;
+      if(!topic.student){ 
+        div.onclick=()=>{ 
+          if(confirm(`${language==='kk'?'Сіз таңдадыңыз ба':'Вы выбрали'}: "${topic.title[language]}" ?`)) 
+            socket.emit("chooseTopic",{ fio: currentFio, centerName:center.name[language], topicId:topic.id }); 
+        }; 
+      }
       topicsDiv.appendChild(div);
     });
     block.appendChild(topicsDiv);
     container.appendChild(block);
   });
-});
+}
 
-socket.on("topicError", msg=>{ alert(msg); });
 function logout(){ location.reload(); }
 function downloadReport(){ window.location="/downloadReport"; }
-function clearAll(){ if(confirm("⚠️ Барлық таңдалған тақырыптарды тазалау керек пе?")) socket.emit("clearAll"); }
+function clearAll(){ if(confirm(language==='kk'?"⚠️ Барлық таңдалған тақырыптарды тазалау керек пе?":"⚠️ Очистить все выбранные темы?")) socket.emit("clearAll"); }
 </script>
 </body>
 </html>
