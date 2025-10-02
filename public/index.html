@@ -1,115 +1,199 @@
 <!DOCTYPE html>
 <html lang="kk">
 <head>
-  <meta charset="UTF-8">
-  <title>Магистранттар тақырып таңдау жүйесі</title>
-  <script src="/socket.io/socket.io.js"></script>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    .hidden { display: none; }
-    .topic { border: 1px solid #ccc; margin: 5px; padding: 10px; border-radius: 5px; }
-    .taken { background: #ffd6d6; }
-    .lang-switch { margin-bottom: 10px; }
-    button { margin-top: 5px; }
-  </style>
+<meta charset="utf-8" />
+<title>Магистрант тақырып таңдау</title>
+<script src="/socket.io/socket.io.js"></script>
+<style>
+  body{font-family:Arial,sans-serif;margin:20px;background:#f8f9fa}
+  h1{color:#2c3e50}
+  .form-box{background:#fff;padding:16px;border-radius:8px;width:340px;box-shadow:0 2px 6px rgba(0,0,0,0.08)}
+  input,select,button{padding:8px;margin-top:8px;border-radius:6px;border:1px solid #ccc}
+  button{background:#007bff;color:#fff;border:none;cursor:pointer}
+  button:hover{opacity:0.95}
+  .top-bar{display:flex;justify-content:space-between;align-items:center;margin-top:14px}
+  .center-block{background:#fff;border-radius:8px;margin-top:10px;padding:0;box-shadow:0 2px 6px rgba(0,0,0,0.06)}
+  .center-header{padding:12px;background:#e9ecef;border-radius:8px 8px 0 0;font-weight:bold;cursor:pointer}
+  .topics{padding:10px;display:none}
+  .topic{padding:8px;border-radius:6px;margin-bottom:6px}
+  .free{background:#e9f7ec;color:#155724;cursor:pointer}
+  .taken{background:#f8d7da;color:#721c24}
+  .my-choice{background:#fff8e1;border:1px solid #ffeeba;padding:12px;border-radius:8px;margin-top:12px}
+  .hidden{display:none}
+</style>
 </head>
 <body>
-  <div class="lang-switch">
-    <label>🌐 Тіл / Язык: </label>
-    <select id="lang">
+  <h1>🎓 Магистранттардың тақырып таңдау жүйесі</h1>
+
+  <div id="loginForm" class="form-box">
+    <label>ИИН:</label><br>
+    <input id="iin" type="text" placeholder="ИИН енгізіңіз" /><br>
+    <label>Тіл / Язык:</label><br>
+    <select id="langSelect">
       <option value="kk">Қазақша</option>
       <option value="ru">Русский</option>
-    </select>
-  </div>
-
-  <div id="login">
-    <h3 id="loginTitle">ИИН енгізіңіз / Введите ИИН</h3>
-    <input type="text" id="iinInput" placeholder="ИИН">
+    </select><br>
     <button onclick="login()">Кіру / Войти</button>
-    <p id="error" style="color:red"></p>
+    <p id="loginError" style="color:red"></p>
   </div>
 
   <div id="main" class="hidden">
-    <h3 id="welcome"></h3>
-    <div id="centers"></div>
-    <button id="logoutBtn" onclick="logout()">🚪 Шығу</button>
-    <button id="clearBtn" class="hidden" onclick="clearAll()">🧹 Барлығын тазалау</button>
-    <button id="reportBtn" class="hidden" onclick="downloadReport()">📥 Есеп жүктеу</button>
+    <div class="top-bar">
+      <div>👤 <b id="studentName"></b></div>
+      <div>
+        <div id="adminButtons" class="hidden">
+          <button onclick="downloadReport()">📥 Отчёт (CSV)</button>
+          <button onclick="clearAll()">🧹 Барлығын тазалау</button>
+          <button onclick="logout()">🚪 Шығу</button>
+        </div>
+        <div id="studentButtons" class="hidden">
+          <button onclick="logout()">🚪 Шығу</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="myChoice" class="my-choice hidden"></div>
+
+    <h2 id="centersTitle">📚 Орталықтар</h2>
+    <div id="centersContainer"></div>
   </div>
 
-  <script>
-    const socket = io();
-    let currentLang = "kk";
-    let isAdmin = false;
+<script>
+const socket = io();
+let currentFio = null;
+let isAdmin = false;
+let currentLang = 'kk';
+let lastCenters = [];
 
-    document.getElementById("lang").addEventListener("change", (e) => {
-      currentLang = e.target.value;
-      renderCenters(window.centers || []);
+// Вход
+function login(){
+  const iin = document.getElementById('iin').value.trim();
+  currentLang = document.getElementById('langSelect').value;
+  if(!iin){ document.getElementById('loginError').textContent = '⚠️ ИИН енгізіңіз!'; return; }
+  document.getElementById('loginError').textContent = '';
+  socket.emit('registerStudent',{ iin, lang: currentLang });
+}
+
+// После успешной авторизации — этот эвент только для одного сокета
+socket.on('authSuccess', ({ fio, isAdmin: adminFlag, centers, lang }) => {
+  currentFio = fio;
+  isAdmin = adminFlag;
+  currentLang = lang || currentLang;
+  lastCenters = centers;
+
+  document.getElementById('loginForm').classList.add('hidden');
+  document.getElementById('main').classList.remove('hidden');
+  document.getElementById('studentName').textContent = currentFio;
+
+  document.getElementById('adminButtons').classList.toggle('hidden', !isAdmin);
+  document.getElementById('studentButtons').classList.toggle('hidden', isAdmin);
+
+  renderCenters(centers);
+});
+
+// Ошибки авторизации
+socket.on('authError', msg => {
+  document.getElementById('loginError').textContent = msg;
+});
+
+// Когда кто-то выбрал тему — всем приходит обновлённый список
+socket.on('topicsUpdate', centers => {
+  lastCenters = centers;
+  renderCenters(centers);
+});
+
+// Ошибки выбора темы (только текущему клиенту)
+socket.on('topicError', msg => alert(msg));
+
+function renderCenters(centers){
+  const lang = currentLang;
+  const container = document.getElementById('centersContainer');
+  container.innerHTML = '';
+
+  // Найдём, выбрал ли текущий клиент тему
+  let myTopic = null, myCenter = null;
+  centers.forEach(center=>{
+    center.topics.forEach(topic=>{
+      if(topic.student === currentFio){
+        myTopic = topic;
+        myCenter = center;
+      }
+    });
+  });
+
+  // Если студент и уже выбрал тему — показываем только его выбор
+  if(!isAdmin && myTopic){
+    document.getElementById('myChoice').classList.remove('hidden');
+    document.getElementById('centersTitle').classList.add('hidden');
+    container.classList.add('hidden');
+    document.getElementById('myChoice').textContent = `✅ ${lang==='kk'?'Сіз таңдадыңыз':'Вы выбрали'}: ${myTopic.title[lang]} (${myCenter.name[lang]}) — ${myTopic.time}`;
+    return;
+  } else {
+    document.getElementById('myChoice').classList.add('hidden');
+    document.getElementById('centersTitle').classList.remove('hidden');
+    container.classList.remove('hidden');
+  }
+
+  centers.forEach(center=>{
+    const block = document.createElement('div');
+    block.className = 'center-block';
+
+    const header = document.createElement('div');
+    header.className = 'center-header';
+    header.textContent = center.name[lang];
+    header.onclick = () => {
+      const t = block.querySelector('.topics');
+      t.style.display = (t.style.display === 'none') ? 'block' : 'none';
+    };
+    block.appendChild(header);
+
+    const topicsDiv = document.createElement('div');
+    topicsDiv.className = 'topics';
+    topicsDiv.style.display = isAdmin ? 'block' : 'none';
+
+    center.topics.forEach(topic=>{
+      const d = document.createElement('div');
+      d.className = 'topic ' + (topic.student ? 'taken' : 'free');
+      // Если тема занята кем-то:
+      if(topic.student){
+        // Показываем кто занял (но не меняем currentFio)
+        d.textContent = `${topic.id}. ${topic.title[lang]} — ${topic.student} (${topic.time})`;
+      } else {
+        // Свободная тема
+        d.textContent = `${topic.id}. ${topic.title[lang]}`;
+        // Только студент, а не админ, может выбрать (и только если он ещё не выбрал ничего)
+        if(!isAdmin){
+          d.style.cursor = 'pointer';
+          d.onclick = () => {
+            if(confirm(`${lang==='kk' ? 'Сіз таңдадыңыз ба' : 'Вы выбираете'}: "${topic.title[lang]}" ?`)){
+              // отправляем именно название центра в выбранном языке (чтобы сервер мог найти центр)
+              socket.emit('chooseTopic', {
+                fio: currentFio,
+                centerName: center.name[lang],
+                topicId: topic.id
+              });
+            }
+          };
+        }
+      }
+      topicsDiv.appendChild(d);
     });
 
-    function login() {
-      const iin = document.getElementById("iinInput").value.trim();
-      socket.emit("registerStudent", { iin });
-    }
+    block.appendChild(topicsDiv);
+    container.appendChild(block);
+  });
+}
 
-    function logout() {
-      location.reload();
-    }
+// UI actions
+function logout(){ location.reload(); }
+function downloadReport(){ window.location = '/downloadReport?lang=' + currentLang; }
+function clearAll(){ if(confirm(currentLang==='kk' ? '⚠️ Барлық таңдалған тақырыптарды тазалау керек пе?' : '⚠️ Очистить все выбранные темы?')) socket.emit('clearAll'); }
 
-    socket.on("authError", (msg) => {
-      document.getElementById("error").innerText = msg;
-    });
-
-    socket.on("authSuccess", ({ fio, centers, isAdmin: admin }) => {
-      document.getElementById("login").classList.add("hidden");
-      document.getElementById("main").classList.remove("hidden");
-      document.getElementById("welcome").innerText = "Қош келдіңіз, " + fio;
-      isAdmin = admin;
-
-      document.getElementById("clearBtn").classList.toggle("hidden", !isAdmin);
-      document.getElementById("reportBtn").classList.toggle("hidden", !isAdmin);
-
-      window.centers = centers;
-      renderCenters(centers);
-    });
-
-    socket.on("updateTopics", (centers) => {
-      window.centers = centers;
-      renderCenters(centers);
-    });
-
-    socket.on("topicError", (msg) => {
-      alert(msg);
-    });
-
-    function renderCenters(centers) {
-      const container = document.getElementById("centers");
-      container.innerHTML = "";
-      centers.forEach(center => {
-        const div = document.createElement("div");
-        div.innerHTML = `<h4>${center.name[currentLang]}</h4>`;
-        center.topics.forEach(topic => {
-          const tDiv = document.createElement("div");
-          tDiv.className = "topic" + (topic.student ? " taken" : "");
-          tDiv.innerHTML = `<b>${topic.title[currentLang]}</b><br>` +
-            (topic.student ? `👤 ${topic.student} <br> ⏰ ${topic.time}` : `<button onclick="chooseTopic('${center.name.kk}', ${topic.id})">Таңдау</button>`);
-          div.appendChild(tDiv);
-        });
-        container.appendChild(div);
-      });
-    }
-
-    function chooseTopic(centerName, topicId) {
-      socket.emit("chooseTopic", { fio: document.getElementById("welcome").innerText.replace("Қош келдіңіз, ", ""), centerName, topicId });
-    }
-
-    function clearAll() {
-      socket.emit("clearAll");
-    }
-
-    function downloadReport() {
-      window.location = "/downloadReport";
-    }
-  </script>
+// Меняем язык локально — просто ререндерим последний полученный список
+document.getElementById('langSelect').addEventListener('change', e=>{
+  currentLang = e.target.value;
+  renderCenters(lastCenters);
+});
+</script>
 </body>
 </html>
