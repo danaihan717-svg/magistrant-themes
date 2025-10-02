@@ -17,7 +17,7 @@
   .topics{padding:10px;display:none}
   .topic{padding:8px;border-radius:6px;margin-bottom:6px}
   .free{background:#e9f7ec;color:#155724;cursor:pointer}
-  .taken{background:#f8d7da;color:#721c24}
+  .taken{background:#f8d7da;color:#721c24;cursor:default}
   .my-choice{background:#fff8e1;border:1px solid #ffeeba;padding:12px;border-radius:8px;margin-top:12px}
   .hidden{display:none}
 </style>
@@ -64,6 +64,7 @@ let currentFio = null;
 let isAdmin = false;
 let currentLang = 'kk';
 let lastCenters = [];
+let currentFioHasTopic = false;
 
 // Вход
 function login(){
@@ -74,7 +75,7 @@ function login(){
   socket.emit('registerStudent',{ iin, lang: currentLang });
 }
 
-// После успешной авторизации — этот эвент только для одного сокета
+// После успешной авторизации
 socket.on('authSuccess', ({ fio, isAdmin: adminFlag, centers, lang }) => {
   currentFio = fio;
   isAdmin = adminFlag;
@@ -96,24 +97,49 @@ socket.on('authError', msg => {
   document.getElementById('loginError').textContent = msg;
 });
 
-// Когда кто-то выбрал тему — всем приходит обновлённый список
-socket.on('topicsUpdate', centers => {
-  lastCenters = centers;
-  renderCenters(centers);
+// Обновление конкретных тем
+socket.on('topicsUpdate', updatedCenters => {
+  lastCenters = updatedCenters;
+
+  // Проверяем, выбрал ли текущий студент тему
+  currentFioHasTopic = false;
+  updatedCenters.forEach(center => {
+    center.topics.forEach(topic => {
+      if(topic.student === currentFio) currentFioHasTopic = true;
+    });
+  });
+
+  updatedCenters.forEach(center => {
+    center.topics.forEach(topic => {
+      const topicId = `topic-${center.name.kk}-${topic.id}`;
+      let topicDiv = document.getElementById(topicId);
+
+      if(topicDiv){
+        // Обновляем тему
+        if(topic.student){
+          topicDiv.className = 'topic taken';
+          topicDiv.textContent = `${topic.id}. ${topic.title[currentLang]} — ${topic.student} (${topic.time})`;
+          topicDiv.onclick = null;
+        } else {
+          topicDiv.className = 'topic free';
+          topicDiv.textContent = `${topic.id}. ${topic.title[currentLang]}`;
+          if(!isAdmin && !currentFioHasTopic){
+            topicDiv.style.cursor = 'pointer';
+            topicDiv.onclick = () => chooseTopic(center, topic);
+          }
+        }
+      }
+    });
+  });
+
+  renderMyChoice();
 });
 
-// Ошибки выбора темы (только текущему клиенту)
-socket.on('topicError', msg => alert(msg));
-
-function renderCenters(centers){
-  const lang = currentLang;
-  const container = document.getElementById('centersContainer');
-  container.innerHTML = '';
-
-  // Найдём, выбрал ли текущий клиент тему
+// Отображаем текущий выбор студента
+function renderMyChoice(){
   let myTopic = null, myCenter = null;
-  centers.forEach(center=>{
-    center.topics.forEach(topic=>{
+  lastCenters.forEach(center => {
+    center.topics.forEach(topic => {
       if(topic.student === currentFio){
         myTopic = topic;
         myCenter = center;
@@ -121,26 +147,30 @@ function renderCenters(centers){
     });
   });
 
-  // Если студент и уже выбрал тему — показываем только его выбор
-  if(!isAdmin && myTopic){
+  if(myTopic){
     document.getElementById('myChoice').classList.remove('hidden');
     document.getElementById('centersTitle').classList.add('hidden');
-    container.classList.add('hidden');
-    document.getElementById('myChoice').textContent = `✅ ${lang==='kk'?'Сіз таңдадыңыз':'Вы выбрали'}: ${myTopic.title[lang]} (${myCenter.name[lang]}) — ${myTopic.time}`;
-    return;
+    document.getElementById('centersContainer').classList.add('hidden');
+    document.getElementById('myChoice').textContent = `✅ ${currentLang==='kk'?'Сіз таңдадыңыз':'Вы выбрали'}: ${myTopic.title[currentLang]} (${myCenter.name[currentLang]}) — ${myTopic.time}`;
   } else {
     document.getElementById('myChoice').classList.add('hidden');
     document.getElementById('centersTitle').classList.remove('hidden');
-    container.classList.remove('hidden');
+    document.getElementById('centersContainer').classList.remove('hidden');
   }
+}
 
-  centers.forEach(center=>{
+// Полная отрисовка центров и тем при первом подключении
+function renderCenters(centers){
+  const container = document.getElementById('centersContainer');
+  container.innerHTML = '';
+
+  centers.forEach(center => {
     const block = document.createElement('div');
     block.className = 'center-block';
 
     const header = document.createElement('div');
     header.className = 'center-header';
-    header.textContent = center.name[lang];
+    header.textContent = center.name[currentLang];
     header.onclick = () => {
       const t = block.querySelector('.topics');
       t.style.display = (t.style.display === 'none') ? 'block' : 'none';
@@ -151,45 +181,46 @@ function renderCenters(centers){
     topicsDiv.className = 'topics';
     topicsDiv.style.display = isAdmin ? 'block' : 'none';
 
-    center.topics.forEach(topic=>{
-      const d = document.createElement('div');
-      d.className = 'topic ' + (topic.student ? 'taken' : 'free');
-      // Если тема занята кем-то:
-      if(topic.student){
-        // Показываем кто занял (но не меняем currentFio)
-        d.textContent = `${topic.id}. ${topic.title[lang]} — ${topic.student} (${topic.time})`;
-      } else {
-        // Свободная тема
-        d.textContent = `${topic.id}. ${topic.title[lang]}`;
-        // Только студент, а не админ, может выбрать (и только если он ещё не выбрал ничего)
-        if(!isAdmin){
-          d.style.cursor = 'pointer';
-          d.onclick = () => {
-            if(confirm(`${lang==='kk' ? 'Сіз таңдадыңыз ба' : 'Вы выбираете'}: "${topic.title[lang]}" ?`)){
-              // отправляем именно название центра в выбранном языке (чтобы сервер мог найти центр)
-              socket.emit('chooseTopic', {
-                fio: currentFio,
-                centerName: center.name[lang],
-                topicId: topic.id
-              });
-            }
-          };
-        }
+    center.topics.forEach(topic => {
+      const topicDiv = document.createElement('div');
+      topicDiv.id = `topic-${center.name.kk}-${topic.id}`;
+      topicDiv.className = topic.student ? 'topic taken' : 'topic free';
+      topicDiv.textContent = topic.student ? `${topic.id}. ${topic.title[currentLang]} — ${topic.student} (${topic.time})` : `${topic.id}. ${topic.title[currentLang]}`;
+
+      if(!isAdmin && !currentFioHasTopic && !topic.student){
+        topicDiv.style.cursor = 'pointer';
+        topicDiv.onclick = () => chooseTopic(center, topic);
       }
-      topicsDiv.appendChild(d);
+
+      topicsDiv.appendChild(topicDiv);
     });
 
     block.appendChild(topicsDiv);
     container.appendChild(block);
   });
+
+  renderMyChoice();
 }
 
 // UI actions
+function chooseTopic(center, topic){
+  if(confirm(`${currentLang==='kk'?'Сіз таңдадыңыз ба':'Вы выбираете'}: "${topic.title[currentLang]}" ?`)){
+    socket.emit('chooseTopic', {
+      fio: currentFio,
+      centerName: center.name[currentLang],
+      topicId: topic.id
+    });
+  }
+}
+
 function logout(){ location.reload(); }
 function downloadReport(){ window.location = '/downloadReport?lang=' + currentLang; }
-function clearAll(){ if(confirm(currentLang==='kk' ? '⚠️ Барлық таңдалған тақырыптарды тазалау керек пе?' : '⚠️ Очистить все выбранные темы?')) socket.emit('clearAll'); }
+function clearAll(){ 
+  if(confirm(currentLang==='kk' ? '⚠️ Барлық таңдалған тақырыптарды тазалау керек пе?' : '⚠️ Очистить все выбранные темы?')) 
+    socket.emit('clearAll'); 
+}
 
-// Меняем язык локально — просто ререндерим последний полученный список
+// Меняем язык локально
 document.getElementById('langSelect').addEventListener('change', e=>{
   currentLang = e.target.value;
   renderCenters(lastCenters);
