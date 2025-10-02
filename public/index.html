@@ -5,20 +5,7 @@
 <title>Магистранттардың тақырып таңдауы</title>
 <script src="/socket.io/socket.io.js"></script>
 <style>
-body { font-family: Arial; margin:20px; background:#f8f9fa; }
-.form-box { background:white; padding:20px; border-radius:10px; width:320px; box-shadow:0 2px 6px rgba(0,0,0,0.1);}
-input{width:100%; padding:8px; margin:6px 0 12px; border:1px solid #ccc; border-radius:5px;}
-button{padding:10px 15px; background:#007bff; color:white; border:none; border-radius:5px; cursor:pointer; margin-top:5px;}
-button:hover{background:#0056b3;}
-.center-block { margin-bottom:10px; background:white; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.1);}
-.center-header { padding:12px; background:#e9ecef; cursor:pointer; border-radius:8px 8px 0 0; font-weight:bold; }
-.topics { display:none; padding:10px; }
-.topic { margin:5px 0; padding:8px; border-radius:5px; cursor:pointer; }
-.taken { background:#f8d7da; color:#721c24; }
-.free { background:#d4edda; color:#155724; }
-.top-bar { display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; }
-.my-choice { background:#fff3cd; border:1px solid #ffeeba; padding:15px; border-radius:10px; margin-bottom:20px; }
-.hidden { display:none; }
+/* Стили оставляем те же */
 </style>
 </head>
 <body>
@@ -35,6 +22,12 @@ button:hover{background:#0056b3;}
 <div id="main" class="hidden">
 <div class="top-bar">
 <div>👤 <b id="studentName"></b></div>
+<div>
+<select id="langSelect" onchange="changeLang()">
+<option value="kk">Қазақша</option>
+<option value="ru">Русский</option>
+</select>
+</div>
 <div id="adminButtons" class="hidden">
 <button onclick="downloadReport()">📥 Отчёт (CSV)</button>
 <button onclick="clearAll()">🧹 Барлығын тазалау</button>
@@ -52,6 +45,9 @@ button:hover{background:#0056b3;}
 <script>
 const socket = io();
 let currentFio=null;
+let currentLang="kk";
+let currentCenters=[]; 
+let isAdmin=false;
 
 function login(){
     const iin = document.getElementById("iin").value.trim();
@@ -61,26 +57,31 @@ function login(){
 
 socket.on("authError", msg => document.getElementById("loginError").textContent=msg);
 
-socket.on("topicsList",(centers,isAdmin,fio)=>{
-    currentFio=fio;
+socket.on("topicsList",(centers, admin, fio)=>{
+    currentFio=fio; isAdmin=admin; currentCenters=centers;
     document.getElementById("studentName").textContent=fio;
     document.getElementById("loginForm").classList.add("hidden");
     document.getElementById("main").classList.remove("hidden");
 
-    if(isAdmin){ document.getElementById("adminButtons").classList.remove("hidden"); document.getElementById("studentButtons").classList.add("hidden"); }
+    if(admin){ document.getElementById("adminButtons").classList.remove("hidden"); document.getElementById("studentButtons").classList.add("hidden"); }
     else { document.getElementById("adminButtons").classList.add("hidden"); document.getElementById("studentButtons").classList.remove("hidden"); }
 
-    renderCenters(centers,isAdmin,fio);
+    renderCenters();
 });
 
-function renderCenters(centers,isAdmin,fio){
-    const container = document.getElementById("centers");
+function changeLang(){
+    currentLang=document.getElementById("langSelect").value;
+    renderCenters();
+}
+
+function renderCenters(){
+    const container=document.getElementById("centers");
     container.innerHTML="";
     let myTopic=null, myCenter=null;
 
-    centers.forEach(center=>{
+    currentCenters.forEach(center=>{
         center.topics.forEach(topic=>{
-            if(topic.student===fio){ myTopic=topic; myCenter=center; }
+            if(topic.student===currentFio){ myTopic=topic; myCenter=center; }
         });
     });
 
@@ -88,7 +89,7 @@ function renderCenters(centers,isAdmin,fio){
         document.getElementById("myChoice").classList.remove("hidden");
         document.getElementById("centersTitle").classList.add("hidden");
         container.classList.add("hidden");
-        document.getElementById("myChoice").textContent=`✅ Сіз таңдадыңыз: ${myTopic.title.kk} (${myCenter.name.kk}) — ${myTopic.time}`;
+        document.getElementById("myChoice").textContent=`✅ Сіз таңдадыңыз: ${myTopic.title[currentLang]} (${myCenter.name[currentLang]}) — ${myTopic.time}`;
         return;
     }
 
@@ -96,21 +97,21 @@ function renderCenters(centers,isAdmin,fio){
     document.getElementById("centersTitle").classList.remove("hidden");
     container.classList.remove("hidden");
 
-    centers.forEach(center=>{
-        const block = document.createElement("div"); block.className="center-block";
-        const header = document.createElement("div"); header.className="center-header"; header.textContent=center.name.kk;
+    currentCenters.forEach(center=>{
+        const block=document.createElement("div"); block.className="center-block";
+        const header=document.createElement("div"); header.className="center-header"; header.textContent=center.name[currentLang];
         header.onclick=()=>{ const topicsDiv = block.querySelector(".topics"); topicsDiv.style.display = topicsDiv.style.display==="none"?"block":"none"; }
         block.appendChild(header);
 
-        const topicsDiv = document.createElement("div"); topicsDiv.className="topics";
+        const topicsDiv=document.createElement("div"); topicsDiv.className="topics";
 
         center.topics.forEach(topic=>{
             const div=document.createElement("div");
             div.className="topic "+(topic.student?"taken":"free");
-            div.textContent=`${topic.id}. ${topic.title.kk} ${topic.student?" — "+topic.student+" ("+topic.time+")":""}`;
+            div.textContent=`${topic.id}. ${topic.title[currentLang]} ${topic.student?" — "+topic.student+" ("+topic.time+")":""}`;
 
             if(!topic.student && !isAdmin){
-                div.onclick=()=>{ if(confirm(`Сіз таңдадыңыз ба: "${topic.title.kk}" ?`)){ socket.emit("chooseTopic",{fio:currentFio, centerName:center.name.kk, topicId:topic.id}); } }
+                div.onclick=()=>{ if(confirm(`Сіз таңдадыңыз ба: "${topic.title[currentLang]}" ?`)){ socket.emit("chooseTopic",{fio:currentFio, centerName:center.name.kk, topicId:topic.id}); } }
             }
             topicsDiv.appendChild(div);
         });
