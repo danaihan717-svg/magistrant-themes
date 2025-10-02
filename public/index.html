@@ -1,124 +1,117 @@
 <!DOCTYPE html>
 <html lang="kk">
 <head>
-  <meta charset="UTF-8">
-  <title>Магистранттардың тақырып таңдауы</title>
-  <script src="/socket.io/socket.io.js"></script>
-  <style>
-    body { font-family: Arial; background: #f8f9fa; margin: 20px; }
-    h1 { color: #2c3e50; }
-    .hidden { display: none; }
-    .error { color: red; }
-    .form-box { background: white; padding: 20px; border-radius: 10px; width: 320px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
-    input, button { width: 100%; padding: 8px; margin: 6px 0 12px; border-radius: 5px; }
-    button { background: #007bff; color: white; border: none; cursor: pointer; }
-    button:hover { background: #0056b3; }
-    .center-block { margin-bottom: 10px; background: white; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
-    .center-header { padding: 12px; background: #e9ecef; cursor: pointer; border-radius: 8px 8px 0 0; font-weight: bold; }
-    .topics { display: none; padding: 10px; }
-    .topic { margin: 5px 0; padding: 8px; border-radius: 5px; cursor: pointer; }
-    .taken { background: #f8d7da; color: #721c24; }
-    .free { background: #d4edda; color: #155724; }
-    .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-    .my-choice { background: #fff3cd; border: 1px solid #ffeeba; padding: 15px; border-radius: 10px; margin-bottom: 20px; }
-  </style>
+<meta charset="UTF-8">
+<title>Магистрант тақырып таңдау</title>
+<script src="/socket.io/socket.io.js"></script>
+<style>
+body { font-family: Arial; margin:20px; background:#f8f9fa; }
+h1{color:#2c3e50;} .hidden{display:none;} .error{color:red;}
+.form-box{background:white;padding:20px;border-radius:10px;width:320px;box-shadow:0 2px 6px rgba(0,0,0,0.1);}
+input{width:100%;padding:8px;margin:6px 0 12px;border:1px solid #ccc;border-radius:5px;}
+button{padding:10px 15px;background:#007bff;color:white;border:none;border-radius:5px;cursor:pointer;margin-top:5px;}
+button:hover{background:#0056b3;}
+.center-block{margin-bottom:10px;background:white;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.1);}
+.center-header{padding:12px;background:#e9ecef;cursor:pointer;border-radius:8px 8px 0 0;font-weight:bold;}
+.topics{display:none;padding:10px;}
+.topic{margin:5px 0;padding:8px;border-radius:5px;cursor:pointer;}
+.taken{background:#f8d7da;color:#721c24;}
+.free{background:#d4edda;color:#155724;}
+.top-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;}
+.my-choice{background:#fff3cd;border:1px solid #ffeeba;padding:15px;border-radius:10px;margin-bottom:20px;}
+</style>
 </head>
 <body>
-  <h1>🎓 Магистранттардың тақырып таңдау жүйесі</h1>
+<h1>🎓 Магистрант тақырып таңдау</h1>
 
-  <div id="loginForm" class="form-box">
-    <label>ИИН:</label>
-    <input type="password" id="iin" placeholder="ИИН енгізіңіз">
-    <button onclick="login()">Кіру</button>
-    <p class="error" id="loginError"></p>
-  </div>
+<div id="loginForm" class="form-box">
+<label>ИИН:</label>
+<input type="password" id="iin" placeholder="ИИН енгізіңіз">
+<button onclick="login()">Кіру</button>
+<p class="error" id="loginError"></p>
+</div>
 
-  <div id="main" class="hidden">
-    <div class="top-bar">
-      <div>👤 <b id="studentName"></b></div>
-      <div id="adminButtons" class="hidden">
-        <button onclick="downloadReport()">📥 Отчёт (CSV)</button>
-        <button onclick="clearAll()">🧹 Барлығын тазалау</button>
-        <button onclick="logout()">🚪 Шығу</button>
-      </div>
-      <div id="studentButtons" class="hidden">
-        <button onclick="logout()">🚪 Шығу</button>
-      </div>
-    </div>
+<div id="main" class="hidden">
+<div class="top-bar">
+<div>👤 <b id="studentName"></b></div>
+<div id="adminButtons" class="hidden">
+<button onclick="downloadReport()">📥 Отчёт (CSV)</button>
+<button onclick="clearAll()">🧹 Барлығын тазалау</button>
+<button onclick="logout()">🚪 Шығу</button>
+</div>
+<div id="studentButtons" class="hidden">
+<button onclick="logout()">🚪 Шығу</button>
+</div>
+</div>
 
-    <div id="myChoice" class="my-choice hidden"></div>
-    <h2 id="centersTitle">📚 Орталықтар</h2>
-    <div id="centers"></div>
-  </div>
+<div id="myChoice" class="my-choice hidden"></div>
+<h2 id="centersTitle">📚 Орталықтар</h2>
+<div id="centers"></div>
 
 <script>
-const socket = io();
-let currentFio = null;
+const socket = io(); let currentFio = null; let isAdmin = false;
 
-function login() {
+function login(){
   const iin = document.getElementById("iin").value.trim();
-  if(!iin){ document.getElementById("loginError").textContent="⚠️ ИИН енгізіңіз!"; return; }
-  socket.emit("registerStudent",{iin});
+  if(!iin){document.getElementById("loginError").textContent="⚠️ ИИН енгізіңіз!"; return;}
+  socket.emit("registerStudent",{ iin });
 }
 
-socket.on("authError", msg=>{document.getElementById("loginError").textContent=msg});
+socket.on("authError", msg => document.getElementById("loginError").textContent=msg);
 
-socket.on("topicsList",(centers,isAdmin,fio)=>{
-  currentFio = fio;
+socket.on("topicsList",(centersList, admin, fio)=>{
+  isAdmin=admin; currentFio=fio;
   document.getElementById("loginForm").classList.add("hidden");
   document.getElementById("main").classList.remove("hidden");
   document.getElementById("studentName").textContent=fio;
 
-  document.getElementById("adminButtons").classList.toggle("hidden",!isAdmin);
-  document.getElementById("studentButtons").classList.toggle("hidden",isAdmin);
+  document.getElementById("adminButtons").classList.toggle("hidden", !admin);
+  document.getElementById("studentButtons").classList.toggle("hidden", admin);
 
-  const container=document.getElementById("centers");
-  container.innerHTML="";
-  let myTopic=null,myCenter=null;
+  const container = document.getElementById("centers");
+  container.innerHTML=""; let myTopic=null, myCenter=null;
 
-  centers.forEach(center=>{
-    center.topics.forEach(topic=>{
-      if(topic.student===currentFio){myTopic=topic; myCenter=center;}
+  if(!admin){
+    centersList.forEach(c=>{
+      c.topics.forEach(t=>{ if(t.student===fio){myTopic=t; myCenter=c;} });
     });
-  });
-
-  if(myTopic && !isAdmin){
-    document.getElementById("myChoice").classList.remove("hidden");
-    document.getElementById("centersTitle").classList.add("hidden");
-    container.classList.add("hidden");
-    document.getElementById("myChoice").textContent=`✅ Сіз таңдадыңыз: ${myTopic.title.kk} (${myCenter.name.kk}) — ${myTopic.time}`;
-    return;
+    if(myTopic){
+      document.getElementById("myChoice").classList.remove("hidden");
+      container.classList.add("hidden"); document.getElementById("centersTitle").classList.add("hidden");
+      document.getElementById("myChoice").textContent=`✅ Сіз таңдадыңыз: ${myTopic.title.kk} (${myCenter.name.kk}) — ${myTopic.time}`;
+      return;
+    }
+    document.getElementById("myChoice").classList.add("hidden"); container.classList.remove("hidden");
+    document.getElementById("centersTitle").classList.remove("hidden");
   }
 
-  document.getElementById("myChoice").classList.add("hidden");
-  document.getElementById("centersTitle").classList.remove("hidden");
-  container.classList.remove("hidden");
-
-  centers.forEach(center=>{
+  centersList.forEach(center=>{
     const block=document.createElement("div"); block.className="center-block";
     const header=document.createElement("div"); header.className="center-header"; header.textContent=center.name.kk;
-    header.onclick=()=>{ const topicsDiv=block.querySelector(".topics"); topicsDiv.style.display=(topicsDiv.style.display==="none")?"block":"none"; };
+    header.onclick=()=>{const tDiv=block.querySelector(".topics"); tDiv.style.display=tDiv.style.display==="none"?"block":"none";};
     block.appendChild(header);
-    const topicsDiv=document.createElement("div"); topicsDiv.className="topics"; topicsDiv.style.display="none";
+
+    const topicsDiv=document.createElement("div"); topicsDiv.className="topics";
+    if(admin) topicsDiv.style.display="block";
 
     center.topics.forEach(topic=>{
       const div=document.createElement("div");
       div.className="topic "+(topic.student?"taken":"free");
-      div.textContent=`${topic.id}. ${topic.title.kk} ${topic.student ? " — "+topic.student+" ("+topic.time+")":""}`;
-      if(!topic.student && !isAdmin){
-        div.onclick=()=>{if(confirm(`Сіз таңдадыңыз ба: "${topic.title.kk}" ?`)) socket.emit("chooseTopic",{fio:currentFio, centerName:center.name.kk, topicId:topic.id});};
+      div.textContent=`${topic.id}. ${topic.title.kk} ${topic.student?" — "+topic.student+" ("+topic.time+")":""}`;
+
+      if(!topic.student && !admin){
+        div.onclick=()=>{if(confirm(`Сіз таңдадыңыз ба: "${topic.title.kk}" ?`)){
+          socket.emit("chooseTopic",{ fio:currentFio, centerName:center.name.kk, topicId:topic.id }); }};
       }
       topicsDiv.appendChild(div);
     });
-
-    block.appendChild(topicsDiv);
-    container.appendChild(block);
+    block.appendChild(topicsDiv); container.appendChild(block);
   });
 });
 
-function logout(){location.reload();}
-function downloadReport(){window.location="/downloadReport";}
-function clearAll(){if(confirm("⚠️ Барлық таңдалған тақырыптарды тазалау керек пе?")) socket.emit("clearAll");}
+function logout(){ location.reload(); }
+function downloadReport(){ window.location="/downloadReport"; }
+function clearAll(){ if(confirm("⚠️ Барлық таңдалған тақырыптарды тазалау керек пе?")) socket.emit("clearAll"); }
 </script>
 </body>
 </html>
