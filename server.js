@@ -11,20 +11,21 @@ app.use(express.static('public'));
 let studentCenter = {};
 
 io.on('connection', (socket) => {
-  console.log("🔗 Новый магистрант подключился");
+  console.log("🔗 Жаңа магистрант қосылды");
 
-  socket.on('registerStudent', ({ iin }) => {
+  socket.on('registerStudent', ({ iin, lang }) => {
     const student = students.find(s => s.iin === iin);
     if (!student) {
-      socket.emit('authError', "❌ ИИН неверный!");
+      socket.emit('authError', "❌ ИИН қате!");
       return;
     }
 
     socket.fio = student.fio;
     socket.isAdmin = student.isAdmin || false;
+    socket.lang = lang || 'kk';
 
-    console.log(`✅ Тіркелді: ${socket.fio} ${socket.isAdmin ? "(ADMIN)" : ""}`);
-    socket.emit('topicsList', centers, socket.isAdmin, socket.fio);
+    console.log(`✅ Тіркелді: ${student.fio} ${socket.isAdmin ? "(ADMIN)" : ""}`);
+    socket.emit('topicsList', centers, socket.isAdmin, socket.fio, socket.lang);
   });
 
   socket.on('chooseTopic', ({ fio, centerName, topicId }) => {
@@ -32,21 +33,13 @@ io.on('connection', (socket) => {
     if (!center) return;
 
     if (studentCenter[fio] && studentCenter[fio] !== centerName) {
-      socket.emit('topicError', "⚠️ Вы выбрали тему в другом центре!");
+      socket.emit('topicError', "⚠️ Сіз басқа орталықтан тақырып таңдадыңыз!");
       return;
     }
 
     let topic = center.topics.find(t => t.id === topicId);
-    if (!topic) return;
-
-    if (topic.student) {
-      socket.emit('topicError', "❌ Эта тема уже выбрана!");
-      return;
-    }
-
-    let already = center.topics.find(t => t.student === fio);
-    if (already) {
-      socket.emit('topicError', "⚠️ Вы уже выбрали тему в этом центре!");
+    if (!topic || topic.student) {
+      socket.emit('topicError', "❌ Бұл тақырып толы немесе қате!");
       return;
     }
 
@@ -54,31 +47,34 @@ io.on('connection', (socket) => {
     topic.time = new Date().toLocaleString("kk-KZ", { timeZone: "Asia/Almaty" });
     studentCenter[fio] = centerName;
 
-    console.log(`🎓 ${fio} выбрал: ${topic.title.kk}`);
-    io.emit('topicsList', centers, socket.isAdmin, fio);
+    console.log(`🎓 ${fio} таңдады: ${topic.title.kk}`);
+    io.emit('topicsList', centers, socket.isAdmin, socket.fio, socket.lang);
   });
 
-  socket.on("clearAll", () => {
+  socket.on('clearAll', () => {
     if (!socket.isAdmin) return;
-    centers.forEach(center => center.topics.forEach(t => { t.student = null; t.time = null; }));
+    centers.forEach(c => c.topics.forEach(t => { t.student = null; t.time = null; }));
     studentCenter = {};
     console.log("🧹 Админ очистил все выборы");
-    io.emit("topicsList", centers, true, null);
+    io.emit('topicsList', centers, true, null, socket.lang);
   });
 
   socket.on('disconnect', () => {
-    if (socket.fio) console.log(`❎ Отключился: ${socket.fio}`);
+    if (socket.fio) console.log(`❎ Шығып кетті: ${socket.fio}`);
   });
 });
 
 app.get('/downloadReport', (req, res) => {
-  let csv = "ФИО,Центр,Тема,Время\n";
-  centers.forEach(center => center.topics.forEach(t => {
-    if (t.student) csv += `${t.student},${center.name.kk},${t.title.kk},${t.time}\n`;
-  }));
+  const lang = req.query.lang || 'kk';
+  let csv = `Толық аты-жөні,Центр,Тақырып,Таңдау уақыты\n`;
+  centers.forEach(c => {
+    c.topics.forEach(t => {
+      if (t.student) csv += `${t.student},${c.name[lang]},${t.title[lang]},${t.time}\n`;
+    });
+  });
   res.setHeader('Content-Type', 'text/csv');
   res.setHeader('Content-Disposition', 'attachment; filename=report.csv');
   res.send(csv);
 });
 
-http.listen(3000, "0.0.0.0", () => console.log("🚀 Сервер запущен на http://0.0.0.0:3000"));
+http.listen(3000, "0.0.0.0", () => console.log("🚀 Сервер іске қосылды: http://0.0.0.0:3000"));
